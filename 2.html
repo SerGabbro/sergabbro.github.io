@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Gabbro</title>
+
+        <script src="https://www.gdprset.it/widget/gdpr-it-1.js" type="text/javascript"></script>
+
+        <link href="style.css" rel="stylesheet">
+        <script src="script.js"></script>
+    </head>
+
+    <body>
+        <div class="min_div">
+            <p class="min_text">Gabbro</p>
+            <a class="min_button" style="float: right;" href="https://github.com/SerGabbro">Home</a>
+            <a class="min_button" style="float: right;" href="https://github.com/SerGabbro">GitHub</a>
+        </div>
+
+        <div class="min_div" style="width: 90%;">
+            <center>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Archlinux-logo-standard-version.png" style="width: 100px; background-color: wheat;">
+            </center>
+            <p class="min_text">
+                Questa mini guida richiede di essere già in possesso delle chiavi KEK,DB,PK e aver già fatto l'enrolling nel BIOS nella
+                modalità Setup del SecureBoot.
+                <br>
+                A questo punto dobbiamo creare uno script in bash che vada a firmare il kernel ogni qual volta che quest'ultimo viene
+                aggiornato. Se non facciamo ciò bisognerà ripetere la procedura di firma manualmente usando sbsign.
+                <br>
+                Per il kernel ci serve solo una chiave, la DB ".key" con il suo relativo certificato ".crt", queste dovranno essere messe
+                in un percorso fisso.
+                <br>
+                Per prima cosa dobbiamo capire dove andrà messo il file contente lo script. Quest'ultimo andrà creato nella directory
+                "/etc/initcpio/post/<nomefile>", come nome mettere qualcosa di comprensibile tipo "kernel-sign" o "firma-kernel".
+                <br>
+                Arrivati a questo punto dobbiamo scrivere il seguente codice:
+            </p>
+            <br>
+            <pre>
+                <code>
+#!/usr/bin/env bash
+
+kernel="$1"
+[[ -n "$kernel" ]] || exit 0
+
+# use already installed kernel if it exists
+[[ ! -f "$KERNELDESTINATION" ]] || kernel="$KERNELDESTINATION"
+
+keypairs=(/path/to/db.key /path/to/db.crt)
+
+for (( i=0; i&lt${#keypairs[@]}; i+=2 )); do
+    key="${keypairs[$i]}" cert="${keypairs[(( i + 1 ))]}"
+    if ! sbverify --cert "$cert" "$kernel" &>/dev/null; then
+        sbsign --key "$key" --cert "$cert" --output "$kernel" "$kernel"
+    fi
+done
+                </code>
+            </pre>
+
+            <br>
+            <p class="min_text">
+                riassuntivamente, il codice, nella prima parte verifica che gli sia stato passato un paramentro "kernel" e ne ricava la path,
+                successivamente viene definito un array contente le chiavi e i certificati. A questo punto vi starete chiedendo perchè un for,
+                ebbene il for serve nel caso io abbia più chiavi db con relativi certificati, infatti le prende a coppie, verifica che il kernel
+                non sia gia stato firmato con quelle chiavi e eventualmente lo firma. 
+                <br>
+                Se non si necessita di usare più chaivi di db si può usare il seguente codice:
+            </p>
+            <br>
+
+            <pre>
+                <code>
+#!/usr/bin/env bash
+
+kernel="$1"
+[[ -n "$kernel" ]] || exit 0
+
+# use already installed kernel if it exists
+[[ ! -f "$KERNELDESTINATION" ]] || kernel="$KERNELDESTINATION"
+
+cert=/path/to/db.crt
+key=/path/to/db.key
+
+if ! sbverify --cert "$cert" "$kernel" &>/dev/null; then
+    sbsign --key "$key" --cert "$cert" --output "$kernel" "$kernel"
+fi                   
+                </code>
+            </pre>
+            <br>
+
+            <p class="min_text">
+                Una volta creato il file basta dare il permesso di esecuzione con "sudo chmod +x &ltnomefile&gt",
+                posso eseguire mkinitcpio per verificare se lo script viene eseguito correttamente:
+            </p>
+            <img src="images/2/1.png">
+        </div>
+
+    </body>
+
+</html>
