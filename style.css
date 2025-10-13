@@ -1,112 +1,172 @@
-body
-{
-    align-items: center;
-    background-color: #050404;
+/* Font elegante */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
 
-    display: block;
-
-    font-size: 12pt;
-    font-family: monospace;
-
-    width: 100%;
+body {
+  background-color: #121212;
+  color: #f0f0f0;
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
-div.min_div
-{
-    background-color: #4A1942;
-    
-    border: 1px solid transparent;
-    border-radius: 20px;
-
-    display: block;
-
-    margin: 10px auto;
-    padding: 10px;
-
-    width: 80%;
+/* Navbar */
+.navbar {
+  background-color: #1c1c1c;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 40px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-p.min_text
-{
-    color: whitesmoke;
-
-    display: inline-block;
-
-    text-transform: uppercase;
-
-    vertical-align: middle;
+.navbar h1 {
+  color: #f0f0f0;
+  margin: 0;
+  font-weight: 600;
 }
 
-a.min_a
-{
-    background-color: transparent;
-    color: yellow;
-    display: inline-flex;
-
-    line-height: 50px;
-
-    vertical-align: middle;
+.navbar ul {
+  list-style: none;
+  display: flex;
+  gap: 25px;
+  margin: 0;
+  padding: 0;
 }
 
-a.min_button
-{
-    animation: over_ani_out 1s;
-
-    background-color: transparent;
-    border: 1px solid whitesmoke;
-    border-radius: 5px;
-    color: whitesmoke;
-    display: inline-flex;
-    
-    margin: 0px 5px;
-    padding: 0px 20px;
-
-    line-height: 50px;
-                
-    text-decoration: none;
-    vertical-align: middle;
+.navbar a {
+  color: #f0f0f0;
+  text-decoration: none;
+  font-weight: 400;
+  transition: color 0.3s ease;
 }
 
-a.min_button:hover
-{
-    animation: over_ani_in 1s;
-
-    cursor: pointer;
+.navbar a:hover {
+  color: #e63946;
 }
 
-pre
-{
-    background-color: #294d61;
-    padding: 10px;
-    border-radius: 10px;
-    display: inline-block;
+/* Contenitore principale */
+.container {
+  padding: 60px 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
 }
 
-@keyframes over_ani_in
-{
-    100%
-    {
-        color: #294d61;
-        border-color: #294d61;
-
-        transform: scale(1.1);
-    }
+/* Card */
+.card {
+  background-color: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.6s ease;
+  opacity: 0; /* inizialmente invisibile */
+  transform: translateY(20px);
+  min-height: 200px; /* rende le card omogenee */
 }
 
-@keyframes over_ani_out
-{
-    0%
-    {
-        color: #294d61;
-        border-color: #294d61;
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+}
 
-        transform: scale(1.1);
-    }
-    100%
-    {
-        color: whitesmoke;
-        border-color: whitesmoke;
+.card h3, .card h2 {
+  margin-top: 0;
+  color: #f0f0f0;
+}
 
-        transform: scale(1);
-    }
+.card p {
+  color: #b0b0b0;
+  line-height: 1.5;
+}
+
+/* Animazione fade-in */
+.fade-in {
+  animation: fadeInUp 0.8s forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulsanti */
+.btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.btn-blue {
+  background-color: #1e3a8a;
+  color: #f0f0f0;
+}
+
+.btn-blue:hover {
+  background-color: #2563eb;
+  transform: scale(1.05);
+}
+
+.btn-red {
+  background-color: #7f1d1d;
+  color: #f0f0f0;
+}
+
+.btn-red:hover {
+  background-color: #dc2626;
+  transform: scale(1.05);
+}
+
+/* Separatore */
+hr {
+  border: none;
+  height: 1px;
+  background-color: #2e2e2e;
+  margin: 40px 0;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 20px;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+.note { 
+  background:#191919; 
+  padding:10px; 
+  border-left:4px solid #e63946; 
+  margin-top:12px; color:#cfcfcf; 
+  border-radius:6px; 
+}
+
+.nota-bene {
+  background:#191919; 
+  padding:10px; 
+  border-left:4px solid #ff9800; 
+  color:#cfcfcf; 
+  margin-left: 10px;
+  border-radius:6px; 
+  display: flex;
+  align-items: center;
+}
+
+.nota-bene .icona {
+  font-size: 24px;
+  color: #ff9800;
+  flex-shrink: 0;
+  margin-right: 10px;
 }
