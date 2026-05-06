@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cifratura disco Linux — Gabbro</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="../index.html" class="navbar-brand">
+      <div class="nav-logo"></div>
+      <h1>Gabbro</h1>
+    </a>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="../index.html#articoli" class="active">Articoli</a>
+    </nav>
+  </header>
+
+  <article class="article-page">
+
+    <div class="breadcrumb fade-up">
+      <a href="../index.html">Gabbro</a>
+      <span>/</span>
+      <a href="../index.html#articoli">articoli</a>
+      <span>/</span>
+      cifratura-disco-linux
+    </div>
+
+    <header class="article-header fade-up fade-up-1">
+      <div class="article-meta">
+        <span class="article-date">2025-01-01</span>
+        <span class="tag tag-red">security</span>
+        <span class="tag tag-cyan">linux</span>
+        <span class="tag tag-gray">grub</span>
+        <span class="tag tag-gray">luks</span>
+      </div>
+      <h1>Perché dovresti cifrare il disco su Linux</h1>
+      <p class="lead">Chi ha accesso fisico al tuo computer può ottenere una shell di root in meno di due minuti — senza conoscere nessuna password. Ecco come funziona e come difendersi.</p>
+    </header>
+
+    <div class="article-body fade-up fade-up-2">
+
+      <h2>Il problema</h2>
+
+      <p>Su un sistema Linux con disco <strong>non cifrato</strong>, le protezioni di account e password sono semplicemente cosmesi. Se qualcuno può toccare fisicamente il tuo hardware, può leggere ogni file, modificare il sistema e cambiare le credenziali — senza conoscere la tua password.</p>
+
+      <p>Il vettore d'attacco passa dal bootloader. GRUB, il bootloader predefinito della maggior parte delle distro Linux, espone un editor dei parametri di avvio accessibile con un singolo tasto. Da lì, modificare il processo di init è banale.</p>
+
+      <div class="callout callout-danger">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>Nota etica</strong>
+          Questo articolo descrive una tecnica per comprendere i rischi e difendersi. Non sono fornite istruzioni per compromettere sistemi altrui. Usa questa conoscenza su hardware di tua proprietà o con esplicito consenso scritto.
+        </div>
+      </div>
+
+      <h2>Prerequisiti</h2>
+
+      <p>Questa demo è stata verificata su <strong>Fedora</strong> con bootloader <strong>GRUB2</strong>. Il principio si applica a qualsiasi distro con GRUB — Debian, Ubuntu, Arch, ecc. La stessa tecnica concettuale esiste per bootctl (systemd-boot) e, in forma diversa, per Windows senza BitLocker.</p>
+
+      <h2>Come funziona l'attacco</h2>
+
+      <ol class="steps">
+        <li>
+          <strong>Accedere al menu GRUB</strong>
+          Se il PC ha più sistemi operativi il menu GRUB compare automaticamente. Con un solo OS, è nascosto: premi <code>Esc</code> più volte durante il boot per forzarne la comparsa (o tieni premuto <code>Shift</code> su alcune distro).
+        </li>
+        <li>
+          <strong>Aprire l'editor dei parametri di avvio</strong>
+          Con le frecce seleziona la voce Linux desiderata, poi premi <code>e</code>. Si apre un editor di testo grezzo che mostra i parametri del kernel.
+        </li>
+        <li>
+          <strong>Modificare il processo di init</strong>
+          Cerca la riga che inizia con <code>linux</code>. Trova il parametro <code>ro</code> (read-only) e cancella tutto ciò che lo segue. Aggiungi in fondo:
+          <pre data-label="GRUB edit"><code>rw init=/bin/bash</code></pre>
+          Questo monta il disco in modalità lettura/scrittura e imposta bash come processo di init — che quindi partirà con UID 0 (root), senza alcun prompt di autenticazione.
+        </li>
+        <li>
+          <strong>Avviare il sistema</strong>
+          Premi <code>F10</code> o <code>Ctrl+X</code> per avviare con i parametri modificati. Il sistema si avvia direttamente in una shell bash privilegiata.
+        </li>
+      </ol>
+
+      <p>A questo punto chiunque ha accesso completo al filesystem. Può leggere <code>/etc/shadow</code>, copiare l'intera home, installare backdoor, o cambiare la password con:</p>
+
+      <pre data-label="bash"><code>passwd nomeutente</code></pre>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <strong>Nota tecnica</strong>
+          Alcune operazioni potrebbero richiedere il remount esplicito del filesystem con <code>mount -o remount,rw /</code> se il sistema si avvia in sola lettura nonostante il parametro.
+        </div>
+      </div>
+
+      <h2>La difesa: cifratura LUKS</h2>
+
+      <p>La soluzione è <strong>cifrare l'intero disco</strong> con LUKS (Linux Unified Key Setup), lo standard de facto su Linux, implementato dalla utility <code>cryptsetup</code>.</p>
+
+      <p>Con LUKS attivo, il disco è un blob cifrato. Senza la passphrase (o la chiave) non c'è niente da leggere — neanche con accesso fisico, neanche avviando da USB esterna. GRUB stesso richiede la passphrase prima di poter caricare il kernel.</p>
+
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>Limitazione importante</strong>
+          La cifratura LUKS va configurata <strong>durante l'installazione del sistema operativo</strong>. Non è banale applicarla a posteriori su un sistema già installato senza perdere dati. La maggior parte degli installer moderni (Fedora, Ubuntu, Debian) offre questa opzione in modo nativo — abilitarla è un singolo click.
+        </div>
+      </div>
+
+      <h3>Perché non basta proteggere GRUB con password?</h3>
+
+      <p>Proteggere GRUB con una password è un ulteriore strato difensivo, ma non sufficiente da solo: se il disco non è cifrato, un attaccante può comunque estrarlo, collegarlo a un altro sistema e accedere ai dati direttamente. La cifratura del disco protegge i dati <em>indipendentemente</em> da dove viene montato il disco.</p>
+
+      <h2>Conclusioni</h2>
+
+      <p>La catena di fiducia di un sistema operativo parte dal firmware (UEFI/BIOS), passa per il bootloader, poi il kernel. Se uno di questi livelli è fisicamente accessibile senza protezione crittografica, tutto il resto è teatro.</p>
+
+      <p>Se hai dati personali, credenziali, chiavi SSH o qualsiasi cosa sensibile su un laptop — <strong>cifra il disco</strong>. Non ci sono scuse nel 2025: tutti gli installer lo offrono, il costo prestazionale su hardware moderno è trascurabile, e la protezione è reale.</p>
+
+      <div class="callout callout-danger">
+        <span class="callout-icon">🔐</span>
+        <div class="callout-body">
+          <strong>SEMPRE CIFRARE IL DISCO</strong>
+          Se installi Linux oggi e non abiliti LUKS, stai lasciando la porta di casa aperta con un cartello "le chiavi sono sotto lo zerbino".
+        </div>
+      </div>
+
+    </div><!-- /article-body -->
+
+  </article>
+
+  <footer>
+    <span>© 2025 Gabbro</span>
+    <a href="../index.html">← torna agli articoli</a>
+  </footer>
+
+</body>
+</html>

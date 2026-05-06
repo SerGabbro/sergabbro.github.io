@@ -8,43 +8,102 @@
 </head>
 <body>
 
-  <nav class="navbar">
-    <h1>Gabbro</h1>
-    <ul>
-      <li><a href="#">Home</a></li>
-      <li><a href="#">Servizi</a></li>
-      <li><a href="#">Contatti</a></li>
-    </ul>
-  </nav>
+  <header class="navbar">
+    <a href="index.html" class="navbar-brand">
+      <div class="nav-logo"></div>
+      <h1>Gabbro</h1>
+    </a>
+    <nav>
+      <a href="index.html" class="active">Home</a>
+      <a href="#articoli">Articoli</a>
+      <a href="#strumenti">Strumenti</a>
+      <span class="nav-tag">v0.2</span>
+    </nav>
+  </header>
 
-  <div class="container">
-    <div class="card fade-in">
-        <h3>Perché dovresti cifrare il disco</h3>
-        <p>Proteggi i tuoi dati personali: anche se qualcuno accede fisicamente al tuo computer, non potrà leggere le informazioni senza la chiave di cifratura.</p>
-        <a href="articles/cifratura_linux/linux_cifratura.html" class="btn btn-blue">Leggi l'articolo</a>
+  <section class="hero fade-up">
+    <div class="hero-label">engineering · hacking · electronics · informatics</div>
+    <h2>Note tecniche,<br><em>SuS.</em></h2>
+    <p>SeeeeeS.</p>
+  </section>
+
+  <main class="page-content">
+
+    <!-- ARTICOLI -->
+    <div id="articoli">
+      <div class="section-header fade-up fade-up-1">
+        <span class="section-title">// articoli</span>
+      </div>
+
+      <div class="articles-grid fade-up fade-up-2">
+
+        <!-- Articolo 1 — cifratura linux -->
+        <a href="articles/linux_cifratura.html" class="article-card">
+          <div class="article-card-body">
+            <div class="article-meta">
+              <span class="article-date">2025-02-19</span>
+              <span class="tag tag-red">security</span>
+              <span class="tag tag-cyan">linux</span>
+            </div>
+            <h2 class="article-title">Perché dovresti cifrare il disco su Linux</h2>
+            <p class="article-excerpt">Chi ha accesso fisico al tuo computer può leggere tutto, cambiare password e fare quello che vuole — se il disco non è cifrato. Ecco come funziona l'attacco e come difendersi con LUKS.</p>
+          </div>
+          <span class="article-arrow">→</span>
+        </a>
+        
+        <!-- Placeholder 3 -->
+        <a href="#" class="article-card" style="opacity:0.45; pointer-events:none; cursor:default;">
+          <div class="article-card-body">
+            <div class="article-meta">
+              <span class="article-date">— in arrivo —</span>
+              <span class="tag tag-green">networking</span>
+              <span class="tag tag-cyan">linux</span>
+            </div>
+            <h2 class="article-title">Policy based routing attraverso interfaccia Wireguard in OpenWRT</h2>
+            <p class="article-excerpt">Setup completo in meno di 10 minuti, con routing selettivo e kill switch. Prossimamente.</p>
+          </div>
+          <span class="article-arrow">→</span>
+        </a>
+
+      </div>
     </div>
 
-    <div class="card fade-in">
-      <h3>Esempio Card 2</h3>
-      <p>Le card sono tutte della stessa dimensione e armonizzate con lo sfondo scuro.</p>
-      <button class="btn btn-blue">Azione Blu</button>
-      <button class="btn btn-red">Azione Rossa</button>
+    <!-- STRUMENTI -->
+    <div id="strumenti">
+      <div class="section-header fade-up fade-up-3">
+        <span class="section-title">// strumenti</span>
+      </div>
+
+      <div class="articles-grid fade-up fade-up-4">
+
+        <a href="tools/math.html" class="article-card">
+          <div class="article-card-body">
+            <div class="article-meta">
+              <span class="tag tag-amber">math</span>
+              <span class="tag tag-cyan">interactive</span>
+              <span class="tag tag-gray">dsp</span>
+            </div>
+            <h2 class="article-title">Math Canvas — Fourier &amp; Taylor</h2>
+            <p class="article-excerpt">Sintetizzatore di forme d'onda con spettro in frequenza in tempo reale. Tutte le forme d'onda classiche, componenti armoniche, spettro a righe colorato per frequenza. Tab Taylor con approssimazioni progressive ed errore.</p>
+          </div>
+          <span class="article-arrow">→</span>
+        </a>
+
+      </div>
     </div>
 
-    <div class="card fade-in">
-      <h3>Esempio Card 3</h3>
-      <p>Pulsanti e colori si adattano a un tema dark elegante e moderno.</p>
-      <button class="btn btn-blue">Azione Blu</button>
-      <button class="btn btn-red">Azione Rossa</button>
-    </div>
-  </div>
-
-  <hr>
+  </main>
 
   <footer>
-    <p>© 2025 Gabbro - Tutti i diritti riservati</p>
+    <span>© 2025 Gabbro</span>
+    <span>sergabbro.github.io</span>
   </footer>
 
-  <script src="script.js"></script>
+  <script>
+    // Animazione staggered sulle cards
+    document.querySelectorAll('.article-card:not([style*="pointer-events"])').forEach((el, i) => {
+      el.style.animationDelay = `${i * 60}ms`;
+    });
+  </script>
 </body>
 </html>
