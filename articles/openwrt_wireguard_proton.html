@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Routing WiFi via WireGuard (Proton) su OpenWRT — Gabbro</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* Stile per i "termini glossario" dentro i callout gialli */
+    .callout-warning .callout-body em.term {
+      font-style: normal;
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-2);
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="../index.html" class="navbar-brand">
+      <div class="nav-logo"></div>
+      <h1>Gabbro</h1>
+    </a>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="../index.html#articoli" class="active">Articoli</a>
+    </nav>
+  </header>
+
+  <article class="article-page">
+
+    <div class="breadcrumb fade-up">
+      <a href="../index.html">Gabbro</a>
+      <span>/</span>
+      <a href="../index.html#articoli">articoli</a>
+      <span>/</span>
+      openwrt-wireguard-proton
+    </div>
+
+    <header class="article-header fade-up fade-up-1">
+      <div class="article-meta">
+        <span class="article-date">2025-03-12</span>
+        <span class="tag tag-green">networking</span>
+        <span class="tag tag-cyan">linux</span>
+        <span class="tag tag-gray">openwrt</span>
+        <span class="tag tag-gray">wireguard</span>
+        <span class="tag tag-gray">proton</span>
+      </div>
+      <h1>Routing di una rete WiFi via WireGuard con ProtonVPN su OpenWRT</h1>
+      <p class="lead">Una SSID dedicata, isolata dal resto della LAN, con tutto il traffico forzato dentro un tunnel WireGuard verso ProtonVPN. Policy based routing, kill switch e zona firewall separata.</p>
+    </header>
+
+    <div class="article-body fade-up fade-up-2">
+
+      <h2>Obiettivo</h2>
+
+      <p>L'idea è semplice: una rete WiFi dedicata sul router OpenWRT, con la sua subnet <code>192.168.11.0/24</code>, completamente staccata dalla LAN principale. Tutto quello che si collega a questa SSID esce dal tunnel WireGuard di ProtonVPN, e basta. Se il tunnel cade, non passa niente. Se un device su questa rete prova a parlare con la stampante in salotto, viene bloccato.</p>
+
+      <p>Lato client non serve installare nulla. Ti colleghi alla SSID, sei dentro la VPN. Comodo per smart TV, telefoni di ospiti, console, telecamere IP, dispositivi IoT che fanno cose strane in background e a cui non vuoi mai dare visibilità sulla LAN seria.</p>
+
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>Prerequisiti</strong>
+          OpenWRT recente (testato su 23.05, funziona uguale su 24.x), accesso SSH o LuCI come root, un account ProtonVPN anche free (con qualche limite di server). Mostro sia LuCI che il file <code>uci</code> equivalente, i due metodi sono intercambiabili.
+        </div>
+      </div>
+
+      <h2>1. Generare la configurazione su Proton</h2>
+
+      <p>Proton non ti dà direttamente il file <code>.conf</code> di WireGuard come fa con OpenVPN. Lo devi generare tu dall'area utente. Procedura:</p>
+
+      <ol class="steps">
+        <li>
+          <strong>Login al dashboard</strong>
+          Vai su <code>account.protonvpn.com</code>, fai login. Nella sidebar a sinistra cerca <strong>WireGuard configuration</strong>, sotto la voce Downloads.
+        </li>
+        <li>
+          <strong>Crea una nuova chiave</strong>
+          Dagli un nome (io ho messo <code>openwrt-router</code>). È solo un'etichetta che vedi nel pannello Proton per riconoscere il device, niente di tecnico.
+        </li>
+        <li>
+          <strong>Opzioni di sicurezza</strong>
+          Attiva <strong>NetShield</strong> se vuoi il blocco di tracker e malware a livello DNS — è gratis e non costa niente in performance. <strong>Moderate NAT</strong> serve solo se fai P2P o gaming, altrimenti lascia stare. <strong>VPN Accelerator</strong> tienilo attivo.
+        </li>
+        <li>
+          <strong>Server</strong>
+          Filtra per paese, guarda la load. Conviene un server vicino, sotto il 50% di carico. Il nome del server tipo <code>IT#12</code> appare poi nei commenti del file.
+        </li>
+        <li>
+          <strong>Scarica il <code>.conf</code></strong>
+          Lo scarichi una volta sola. La chiave privata non la rivedi più: se chiudi la pagina e non hai salvato il file, devi rifare tutto da capo.
+        </li>
+      </ol>
+
+      <p>Il file che esce ha questa forma:</p>
+
+      <pre data-label="proton.conf"><code>[Interface]
+# Bouncing = 5
+# NAT = moderate
+# NetShield = 2
+# Moderate NAT = on
+# VPN Accelerator = on
+PrivateKey = aBcDeF...=
+Address = 10.2.0.2/32
+DNS = 10.2.0.1
+
+[Peer]
+# IT#12
+PublicKey = XyZ123...=
+AllowedIPs = 0.0.0.0/0
+Endpoint = 185.159.157.x:51820</code></pre>
+
+      <p>I valori che ti servono sono quattro: <code>PrivateKey</code>, <code>Address</code>, <code>PublicKey</code> del peer, <code>Endpoint</code>.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Cosa sono questi quattro valori</strong>
+          <em class="term">PrivateKey</em> è la tua chiave segreta, la usa il router per firmare i pacchetti in uscita. <em class="term">Address</em> è l'IP che ti assegna Proton dentro la rete del tunnel (non c'entra con la tua LAN, è un IP "interno" al tunnel). <em class="term">PublicKey</em> è la chiave pubblica del server Proton, serve per cifrare verso di lui. <em class="term">Endpoint</em> è dove il tuo router deve mandare i pacchetti — l'IP pubblico del server VPN e la porta UDP, di solito la 51820.
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>Tieni al sicuro la PrivateKey</strong>
+          Se la perdi rigeneri tutto. Se finisce in mano sbagliata, l'attaccante può usare il tuo abbonamento Proton (non decifrare traffico vecchio, grazie alla forward secrecy del protocollo, ma comunque rubarti banda).
+        </div>
+      </div>
+
+      <h2>2. Installare WireGuard su OpenWRT</h2>
+
+      <p>Le immagini OpenWRT base non includono WireGuard. Da SSH sul router:</p>
+
+      <pre data-label="root@openwrt"><code>opkg update
+opkg install wireguard-tools kmod-wireguard luci-app-wireguard luci-proto-wireguard</code></pre>
+
+      <p>Cosa fanno questi quattro pacchetti:</p>
+
+      <ul>
+        <li><code>kmod-wireguard</code> è il modulo kernel, il vero motore del tunnel.</li>
+        <li><code>wireguard-tools</code> sono gli strumenti CLI: <code>wg</code> per ispezionare, <code>wg-quick</code> per gestire i tunnel.</li>
+        <li><code>luci-proto-wireguard</code> aggiunge WireGuard come protocollo selezionabile nella pagina Network di LuCI.</li>
+        <li><code>luci-app-wireguard</code> è una pagina dedicata che mostra stato del peer, ultimo handshake, traffico.</li>
+      </ul>
+
+      <p>Dopo l'installazione, un restart di rpcd serve a far comparire le voci nuove nella GUI:</p>
+
+      <pre data-label="root@openwrt"><code>/etc/init.d/rpcd restart</code></pre>
+
+      <h2>3. Configurare l'interfaccia WireGuard</h2>
+
+      <p>Da LuCI: <strong>Network → Interfaces → Add new interface</strong>. Nome <code>wg0</code>, protocollo <code>WireGuard VPN</code>.</p>
+
+      <p>Nella tab <strong>General Settings</strong>:</p>
+      <ul>
+        <li><strong>Private Key</strong>: incollaci la <code>PrivateKey</code> dal file Proton.</li>
+        <li><strong>Listen Port</strong>: lascia vuoto. Il router è client, non server, non gli serve una porta in ascolto.</li>
+        <li><strong>IP Addresses</strong>: l'<code>Address</code> dal file, tipo <code>10.2.0.2/32</code>.</li>
+      </ul>
+
+      <p>Nella tab <strong>Peers → Add peer</strong>:</p>
+      <ul>
+        <li><strong>Public Key</strong>: il <code>PublicKey</code> del peer Proton.</li>
+        <li><strong>Allowed IPs</strong>: <code>0.0.0.0/0</code>. Tutto.</li>
+        <li><strong>Route Allowed IPs</strong>: <strong>NON attivare</strong>. Questo è il punto critico. Se la spunti, OpenWRT ti aggiunge una default route nella tabella main e tutto il router — anche la tua LAN normale — finisce dentro il tunnel. Noi vogliamo l'opposto: gestire le rotte a mano via <code>pbr</code>.</li>
+        <li><strong>Endpoint Host / Port</strong>: l'IP e la porta dell'<code>Endpoint</code> nel file.</li>
+        <li><strong>Persistent Keep Alive</strong>: <code>25</code>.</li>
+      </ul>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>AllowedIPs, il campo più frainteso di WireGuard</strong>
+          <em class="term">AllowedIPs</em> ha due significati che si sovrappongono. Lato sicurezza: definisce quali IP sorgente il peer è autorizzato a usare quando ti manda pacchetti. È un filtro anti-spoofing — se il server Proton ti spedisse un pacchetto con sorgente che non rientra qui, WireGuard lo droppa. Mettere <code>0.0.0.0/0</code> significa "qualunque sorgente va bene". Lato routing: <em>se</em> attivi <code>route_allowed_ips</code>, WireGuard usa lo stesso elenco per aggiungere rotte. Noi vogliamo solo la parte sicurezza, non quella routing — quindi <code>0.0.0.0/0</code> ma <code>route_allowed_ips = 0</code>.
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Persistent keepalive, perché 25 secondi</strong>
+          <em class="term">keepalive</em> WireGuard di base è muto: se non hai traffico non manda pacchetti. Eleganza pura, ma c'è un problema. Il NAT del tuo router (o peggio, il CG-NAT del tuo ISP) tiene una mappatura per il flusso UDP del tunnel; se nessuno parla per qualche minuto, la mappatura scade, e quando provi a usare la VPN il primo pacchetto va a vuoto. Con <code>PersistentKeepalive = 25</code> il router manda un keepalive ogni 25 secondi: la mappatura NAT resta viva, il tunnel sempre pronto. Il costo è ridicolo, qualche kilobyte all'ora.
+        </div>
+      </div>
+
+      <p>Salva e applica. La stessa cosa via CLI in <code>/etc/config/network</code>:</p>
+
+      <pre data-label="/etc/config/network"><code>config interface 'wg0'
+    option proto 'wireguard'
+    option private_key 'aBcDeF...='
+    list addresses '10.2.0.2/32'
+
+config wireguard_wg0
+    option public_key 'XyZ123...='
+    option endpoint_host '185.159.157.x'
+    option endpoint_port '51820'
+    list allowed_ips '0.0.0.0/0'
+    option route_allowed_ips '0'
+    option persistent_keepalive '25'</code></pre>
+
+      <p>Controlla che il tunnel salga:</p>
+
+      <pre data-label="root@openwrt"><code>wg show
+# "latest handshake" entro pochi secondi, bytes rx/tx > 0</code></pre>
+
+      <p>Se vedi handshake vecchio o zero byte, c'è un problema: chiave sbagliata, endpoint irraggiungibile, firewall WAN del router che blocca UDP 51820 in uscita (raro ma capita).</p>
+
+      <h2>4. Creare la WiFi dedicata e la sua subnet</h2>
+
+      <p>Adesso costruiamo la rete locale che useranno i client VPN. Sarà un'interfaccia separata, con un suo DHCP, una sua SSID. Niente bridge con la LAN principale.</p>
+
+      <p>Da LuCI: <strong>Network → Interfaces → Add new interface</strong>. Chiamala <code>vpnlan</code>, protocollo <code>Static address</code>, device <code>(none)</code> per ora — l'aggancio alla WiFi viene dopo.</p>
+
+      <ul>
+        <li><strong>IPv4 address</strong>: <code>192.168.11.1</code></li>
+        <li><strong>Netmask</strong>: <code>255.255.255.0</code></li>
+      </ul>
+
+      <p>Nella tab <strong>DHCP Server</strong> abilita il server con valori standard — Start 100, Limit 150, Lease 12h. Poi vai nella tab <strong>Advanced Settings</strong> dello stesso DHCP e in <strong>DHCP-Options</strong> aggiungi:</p>
+
+      <pre data-label="dhcp-options"><code>6,10.2.0.1</code></pre>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Cos'è l'opzione DHCP 6</strong>
+          Il protocollo DHCP ha un sacco di opzioni numerate. La <em class="term">opzione 6</em> è la lista dei DNS che il server passa al client. Quando un device prende il lease, configura automaticamente quel DNS. Forzando <code>10.2.0.1</code> (il resolver di Proton, raggiungibile solo attraverso il tunnel) i client risolvono i domini dentro la VPN, e il tuo ISP non vede una singola query DNS. Senza questa forzatura, molti device hanno DNS hardcoded (tipo iOS con Apple, o Chromecast con Google) e te li trovi a parlare con server DNS pubblici al di fuori del tunnel.
+        </div>
+      </div>
+
+      <p>Adesso la WiFi vera e propria. <strong>Network → Wireless → Add</strong>:</p>
+
+      <ul>
+        <li><strong>ESSID</strong>: scegli un nome qualsiasi, io ho messo <code>HomeVPN</code> così quando lo vedo in giro nei device so subito cos'è.</li>
+        <li><strong>Mode</strong>: <code>Access Point</code>.</li>
+        <li><strong>Network</strong>: <strong>vpnlan</strong>, e solo vpnlan. NON spuntare anche <code>lan</code> o fai un bridge fra le due e perdi l'isolamento.</li>
+        <li><strong>Wireless Security</strong>: WPA2-PSK come minimo, WPA3-SAE se hardware e client lo supportano. Passphrase lunga, niente cose tipo <code>password123</code>.</li>
+      </ul>
+
+      <p>A questo punto la SSID è attiva, i client si collegano e prendono IP nella <code>192.168.11.0/24</code>. Però il traffico esce ancora dalla WAN, non dal tunnel — devi ancora dire a OpenWRT di mandarlo dentro <code>wg0</code>.</p>
+
+      <h2>5. Policy based routing</h2>
+
+      <p>Qui c'è il cuore della cosa. Vogliamo che solo i pacchetti che vengono da <code>192.168.11.0/24</code> finiscano in <code>wg0</code>, e che tutto il resto del router continui ad andare in WAN normalmente.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Cos'è il policy based routing</strong>
+          Il routing classico di Linux funziona con una sola tabella, di solito chiamata <em class="term">main</em>, dove c'è una default route che dice "tutto quello che non corrisponde a niente di specifico, mandalo lì". È semplice ma rigido. Il <em class="term">policy based routing</em> aggiunge un secondo strato: Linux può tenere più tabelle di routing in parallelo, e usare delle "rule" (regole di policy) per decidere quale tabella consultare a seconda di criteri come l'IP sorgente del pacchetto, l'interfaccia di ingresso, un firewall mark, eccetera. Nel nostro caso costruiremo una seconda tabella in cui la default route è il tunnel, e una regola che dice "se il pacchetto viene da 192.168.11.0/24, consulta quella tabella". Due routing paralleli, sullo stesso router.
+        </div>
+      </div>
+
+      <p>In OpenWRT moderno c'è un pacchetto fatto apposta, <code>pbr</code>, che gestisce tutto questo a livello alto:</p>
+
+      <pre data-label="root@openwrt"><code>opkg install pbr luci-app-pbr</code></pre>
+
+      <p>Da LuCI vai in <strong>Network → Policy Routing</strong>, abilita il servizio e aggiungi una policy:</p>
+
+      <ul>
+        <li><strong>Name</strong>: <code>VPN subnet</code> o quello che vuoi.</li>
+        <li><strong>Source addresses</strong>: <code>192.168.11.0/24</code></li>
+        <li><strong>Destination addresses</strong>: vuoto, vuol dire "qualunque destinazione".</li>
+        <li><strong>Interface</strong>: <code>wg0</code></li>
+      </ul>
+
+      <p>Salva, applica. L'equivalente in <code>/etc/config/pbr</code>:</p>
+
+      <pre data-label="/etc/config/pbr"><code>config policy
+    option name 'VPN subnet'
+    option src_addr '192.168.11.0/24'
+    option interface 'wg0'
+    option enabled '1'</code></pre>
+
+      <p>Dietro le quinte, <code>pbr</code> crea la tabella di routing alternativa, ci mette dentro la default verso <code>wg0</code>, e aggiunge le <code>ip rule</code> per dirottare i pacchetti dalla subnet. Sopravvive ai reboot, si integra col kill switch, la configuri in tre click. Niente da reinventare a mano con script in <code>/etc/rc.local</code>.</p>
+
+      <h2>6. Zona firewall dedicata e isolamento</h2>
+
+      <p>Pezzo che molti dimenticano. Serve creare una <strong>zona firewall</strong> separata per <code>vpnlan</code> e <code>wg0</code>, altrimenti il NAT non funziona sul tunnel e l'isolamento dalla LAN è solo apparente.</p>
+
+      <p>Da LuCI: <strong>Network → Firewall → Zones → Add</strong>.</p>
+
+      <ul>
+        <li><strong>Name</strong>: <code>vpn</code></li>
+        <li><strong>Input</strong>: <code>reject</code></li>
+        <li><strong>Output</strong>: <code>accept</code></li>
+        <li><strong>Forward</strong>: <code>reject</code></li>
+        <li><strong>Masquerading</strong>: attivo</li>
+        <li><strong>MSS clamping</strong>: attivo</li>
+        <li><strong>Covered networks</strong>: <code>vpnlan</code> e <code>wg0</code></li>
+      </ul>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Le tre policy di una zona: input, output, forward</strong>
+          Si confondono spesso, ma sono cose diverse. <em class="term">input</em> riguarda i pacchetti che entrano nel router e sono destinati al router stesso: un client che pinga il gateway, una richiesta DHCP, un tentativo di SSH al router. <em class="term">output</em> sono pacchetti che il router genera lui stesso verso quella zona: una risposta DHCP, un ping che lanci tu dalla shell SSH. <em class="term">forward</em> sono i pacchetti che il router non produce né riceve per sé, ma <em>fa passare</em> da un'interfaccia a un'altra — il caso normale del traffico LAN→WAN. Con <code>forward = reject</code> nella zona vpn, blocchi anche il traffico fra device dentro la stessa zona; combinato col fatto che non aggiungiamo nessun forwarding fra vpn e lan, ottieni isolamento totale.
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Cos'è il masquerading</strong>
+          Il <em class="term">masquerading</em> è una forma di Source NAT. Quando un pacchetto esce da un'interfaccia con masquerading attivo, il router riscrive l'IP sorgente, sostituendolo col proprio IP su quella interfaccia, e si tiene una tabella di mapping per riconoscere le risposte e mandarle al client giusto. È la stessa identica magia che il router fa sulla WAN — è ciò che permette a tutti i device della tua LAN di condividere un solo IP pubblico. Qui la applichiamo anche al tunnel: senza masquerading sul <code>wg0</code>, i pacchetti dei client avrebbero come sorgente <code>192.168.11.x</code>, Proton non saprebbe dove rispondere, e niente funzionerebbe.
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Cos'è l'MSS clamping (e perché è cruciale con WireGuard)</strong>
+          La <em class="term">MTU</em> è la dimensione massima di un pacchetto IP su una certa interfaccia, di solito 1500 byte su Ethernet. WireGuard aggiunge ~60 byte di overhead (header IP esterno, UDP, header WireGuard) quindi la MTU effettiva del tunnel è ~1420 byte. Se un host manda un pacchetto da 1500 verso un sito che richiede di passare nel tunnel, è troppo grosso: viene frammentato, oppure droppato con un ICMP "fragmentation needed" che dovrebbe arrivare al mittente e fargli ridurre la taglia. Il problema è che mezzo Internet blocca gli ICMP, e il risultato è il classico bug "alcuni siti caricano, altri si bloccano a metà pagina senza errore". L'<em class="term">MSS clamping</em> risolve all'origine: durante l'handshake TCP (i pacchetti SYN), i due endpoint si dicono quanto possono ricevere — l'<em class="term">MSS</em> appunto. Il router intercetta quei SYN e riscrive l'MSS al volo abbassandolo al valore giusto per il tunnel. I client negoziano subito segmenti più piccoli e non si presenta mai il problema della frammentazione. Con WireGuard va sempre attivato.
+        </div>
+      </div>
+
+      <p>Nella tab <strong>Inter-Zone Forwarding</strong> della zona vpn, lascia tutto vuoto:</p>
+
+      <ul>
+        <li><strong>Allow forward to destination zones</strong>: niente</li>
+        <li><strong>Allow forward from source zones</strong>: niente</li>
+      </ul>
+
+      <p>Questo è il punto chiave dell'<strong>isolamento</strong>. Nessun forwarding fra <code>vpn</code> e <code>lan</code>, in nessuna direzione. I device sulla WiFi VPN non vedono stampanti, NAS, telecamere, Plex, niente. E quelli della LAN non vedono niente della rete VPN. Sono due isole.</p>
+
+      <p>L'equivalente in <code>/etc/config/firewall</code>:</p>
+
+      <pre data-label="/etc/config/firewall"><code>config zone
+    option name 'vpn'
+    option input 'REJECT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+    option masq '1'
+    option mtu_fix '1'
+    list network 'vpnlan'
+    list network 'wg0'</code></pre>
+
+      <p>Poi devi aggiungere due eccezioni per DHCP e DNS — altrimenti la zona è così chiusa che i client non riescono nemmeno a prendere l'IP:</p>
+
+      <pre data-label="/etc/config/firewall"><code>config rule
+    option name 'Allow-DHCP-vpn'
+    option src 'vpn'
+    option proto 'udp'
+    option dest_port '67'
+    option target 'ACCEPT'
+    option family 'ipv4'
+
+config rule
+    option name 'Allow-DNS-vpn'
+    option src 'vpn'
+    option proto 'tcp udp'
+    option dest_port '53'
+    option target 'ACCEPT'</code></pre>
+
+      <h2>7. Kill switch</h2>
+
+      <p>Senza kill switch, se il tunnel cade per qualche motivo — Proton fa manutenzione, la WAN sfarfalla, il keepalive non risale — il routing potrebbe rimettersi a usare la default della WAN, e i client uscirebbero in chiaro. Disastro per la privacy, perché magari non te ne accorgi nemmeno.</p>
+
+      <p>Il pacchetto <code>pbr</code> ha un'opzione globale apposta. In <strong>Network → Policy Routing → Configuration</strong> attiva <strong>Strict enforcement</strong>.</p>
+
+      <p>In modalità strict, se l'interfaccia <code>wg0</code> non è up, i pacchetti che dovevano andare lì vengono droppati e basta. Niente fallback. Che è il comportamento giusto: meglio essere offline che essere online in chiaro senza saperlo.</p>
+
+      <p>In aggiunta — belt and suspenders, doppia rete di sicurezza — una regola firewall esplicita che blocca qualunque forward dalla zona vpn alla zona wan:</p>
+
+      <pre data-label="/etc/config/firewall"><code>config rule
+    option name 'Block-vpn-to-wan-killswitch'
+    option src 'vpn'
+    option dest 'wan'
+    option target 'REJECT'
+    option family 'ipv4'</code></pre>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <strong>Testa il kill switch sul serio</strong>
+          Non assumere che funzioni perché l'hai configurato. Collegati alla SSID, da SSH al router fai <code>ifdown wg0</code>, e prova a navigare dal client. Deve fallire tutto, anche un ping a <code>1.1.1.1</code> deve andare in timeout. Poi <code>ifup wg0</code> e in pochi secondi torna tutto. Se durante il test il client ha continuato a navigare, hai un buco e devi capire dove.
+        </div>
+      </div>
+
+      <h2>8. Verifica finale</h2>
+
+      <p>Ti colleghi alla nuova SSID con uno smartphone o un laptop. Quattro test rapidi:</p>
+
+      <ol class="steps">
+        <li>
+          <strong>IP pubblico</strong>
+          Apri <code>ipinfo.io</code> o <code>ifconfig.me</code>. Deve mostrare l'IP del server Proton, non quello del tuo ISP. Se è ancora l'ISP, il routing non funziona.
+        </li>
+        <li>
+          <strong>DNS leak test</strong>
+          Vai su <code>dnsleaktest.com</code>, fai l'extended test. I server DNS che escono devono essere tutti di Proton. Se ne vedi spuntare anche solo uno del tuo ISP o di Google, hai un DNS leak.
+        </li>
+        <li>
+          <strong>Isolamento dalla LAN</strong>
+          Prova a pingare un device che sai essere sulla LAN principale, tipo il NAS o il PC fisso. Deve fallire (timeout o host unreachable). Se risponde, l'isolamento ha un buco.
+        </li>
+        <li>
+          <strong>Kill switch</strong>
+          Da shell del router fai <code>ifdown wg0</code>, dal client prova a navigare. Deve fallire tutto. <code>ifup wg0</code>, torna a funzionare.
+        </li>
+      </ol>
+
+      <h2>Note finali</h2>
+
+      <p>Per i client è completamente trasparente. Niente da installare, niente da configurare. Si collegano alla SSID e sono dentro la VPN. Funziona con qualsiasi cosa, anche dispositivi che non hanno nemmeno il concetto di "client VPN" — telecamere cinesi da 30 euro, vecchi tablet Android dimenticati, stampanti, console.</p>
+
+      <p>Trade-off da tenere a mente. La banda dipende dalla CPU del router. I MediaTek MT7621 e i Qualcomm IPQ40xx tipici dei router consumer fanno 50–150 Mbit/s in WireGuard, e a quel punto il tunnel diventa il collo di bottiglia. Hardware più recente (IPQ807x, Filogic 830) supera tranquillamente il gigabit. Fai uno speedtest dentro e fuori dalla SSID e vedi subito dove sei.</p>
+
+      <p>La latenza aumenta sempre, è fisica: c'è un hop in più. Per il browsing non te ne accorgi, per gaming competitivo o videoconferenze esigenti meglio tenere la LAN principale per quello.</p>
+
+      <p>Ultima cosa, importante. La "WiFi VPN" non ti rende anonimo. Sposta la fiducia dal tuo ISP a Proton, e nasconde il tuo IP pubblico ai siti. Ma cookie, fingerprint del browser, account loggati, telemetria dei device — tutta roba che ti segue indipendentemente da chi fa l'instradamento. Non è un mantello dell'invisibilità, è uno strato di protezione fra molti.</p>
+
+      <div class="callout callout-ok">
+        <span class="callout-icon">✓</span>
+        <div class="callout-body">
+          <strong>Setup completato</strong>
+          SSID dedicata, isolata, routata via Proton con kill switch e doppia protezione. Quattro pacchetti, una zona firewall, una policy di routing. La prima volta ci metti un'oretta perché c'è tanto da capire; la seconda volta su un altro router lo fai in venti minuti.
+        </div>
+      </div>
+
+    </div><!-- /article-body -->
+
+  </article>
+
+  <footer>
+    <span>© 2025 Gabbro</span>
+    <a href="../index.html">← torna agli articoli</a>
+  </footer>
+
+</body>
+</html>
