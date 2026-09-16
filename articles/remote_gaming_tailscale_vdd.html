@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workstation dual-boot in streaming: Tailscale, Sunshine e monitor virtuali — Gabbro</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* Stile per i "termini glossario" dentro i callout gialli */
+    .callout-warning .callout-body em.term {
+      font-style: normal;
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-2);
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      margin-right: 4px;
+    }
+
+    /* =========================================
+       DIAGRAMMA — topologia tailnet
+       ========================================= */
+    .diagram {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 18px 16px;
+      margin: 0 0 20px;
+    }
+
+    .diagram-caption {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--text-faint);
+      letter-spacing: 0.05em;
+      text-align: center;
+      margin-top: 14px;
+      line-height: 1.55;
+    }
+
+    .tailnet {
+      border: 1px dashed rgba(34, 211, 238, 0.35);
+      border-radius: var(--radius);
+      padding: 22px 14px 14px;
+      position: relative;
+    }
+    .tailnet::before {
+      content: "tailnet · 100.64.0.0/10";
+      position: absolute;
+      top: -8px; left: 14px;
+      background: var(--bg-1);
+      padding: 0 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      color: var(--accent-3);
+    }
+
+    .node-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .node {
+      background: var(--bg-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-sm);
+      padding: 12px 8px;
+      text-align: center;
+    }
+    .node-icon { font-size: 20px; line-height: 1; margin-bottom: 8px; }
+    .node-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
+    .node-role {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      margin-top: 3px;
+      line-height: 1.45;
+      display: block;
+    }
+
+    .wire {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--accent-3);
+      letter-spacing: 0.04em;
+      margin: 10px 0 0;
+    }
+
+    .lan-box {
+      margin-top: 14px;
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      background: var(--bg-2);
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .lan-box b { color: var(--text); font-weight: 600; }
+
+    .drop {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--accent-2);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    /* =========================================
+       DIAGRAMMA — mappa dei display
+       ========================================= */
+    .display-map {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 0 0 20px;
+    }
+
+    .dmap-panel {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 12px 12px;
+    }
+
+    .dmap-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      text-align: center;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dmap-title b { color: var(--text-dim); font-weight: 600; }
+
+    .dmap-stage {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 9px;
+      min-height: 96px;
+    }
+
+    .mon-wrap { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+
+    .mon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .mon-169  { width: 74px; height: 42px; }
+    .mon-1610 { width: 70px; height: 44px; }
+
+    .mon-on     { background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text-dim); }
+    .mon-active { background: rgba(34, 211, 238, 0.13); border: 1px solid var(--accent-3); color: var(--accent-3); }
+    .mon-off    { background: transparent; border: 1px dashed var(--text-faint); color: var(--text-faint); }
+
+    .mon-label {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--text-faint);
+      text-align: center;
+      line-height: 1.4;
+    }
+    .mon-wrap.is-primary .mon-label b { color: var(--accent-ok); font-weight: 500; }
+
+    .dmap-cmd {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      text-align: center;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      line-height: 1.5;
+    }
+
+    /* =========================================
+       TABELLA BANDA
+       ========================================= */
+    .table-wrap { overflow-x: auto; margin: 0 0 8px; }
+
+    table.bw {
+      width: 100%;
+      min-width: 420px;
+      border-collapse: collapse;
+    }
+    table.bw th, table.bw td {
+      border: 1px solid var(--border);
+      padding: 9px 11px;
+      text-align: right;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    table.bw th {
+      background: var(--bg-2);
+      color: var(--text-faint);
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    table.bw td:first-child, table.bw th:first-child {
+      text-align: left;
+      color: var(--text);
+    }
+    table.bw tbody tr:nth-child(odd) { background: var(--bg-1); }
+    table.bw td.hl {
+      color: var(--accent-3);
+      background: rgba(34, 211, 238, 0.07);
+    }
+    .table-note {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--text-faint);
+      margin: 0 0 20px;
+      line-height: 1.6;
+    }
+
+    /* comandi lunghi su una riga sola: meglio andare a capo che scrollare */
+    .article-body pre.wrap > code {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 640px) {
+      .display-map { grid-template-columns: 1fr; }
+      .node-grid { grid-template-columns: 1fr; }
+      .diagram { padding: 24px 12px 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="../index.html" class="navbar-brand">
+      <div class="nav-logo"></div>
+      <h1>Gabbro</h1>
+    </a>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="../index.html#articoli" class="active">Articoli</a>
+    </nav>
+  </header>
+
+  <article class="article-page">
+
+    <div class="breadcrumb fade-up">
+      <a href="../index.html">Gabbro</a>
+      <span>/</span>
+      <a href="../index.html#articoli">articoli</a>
+      <span>/</span>
+      remote-gaming-tailscale-vdd
+    </div>
+
+    <header class="article-header fade-up fade-up-1">
+      <div class="article-meta">
+        <span class="article-date">2026-09-16</span>
+        <span class="tag tag-green">networking</span>
+        <span class="tag tag-cyan">windows</span>
+        <span class="tag tag-gray">tailscale</span>
+        <span class="tag tag-gray">sunshine</span>
+        <span class="tag tag-gray">wake-on-lan</span>
+      </div>
+      <h1>La mia workstation in streaming: Tailscale, Sunshine e tre monitor che spariscono</h1>
+      <p class="lead">Accendo il PC di casa da remoto. Entra in Windows da solo. I monitor si spengono. Sul laptop mi ritrovo un desktop in 16:10 che sul fisso non esiste. Ecco come, pezzo per pezzo.</p>
+    </header>
+
+    <div class="article-body fade-up fade-up-2">
+
+      <h2>Il problema</h2>
+
+      <p>Ho una workstation fissa in dual-boot Fedora/Windows, con due monitor davanti. E ho un <strong>Acer Swift Go 14 (SFG14-73-73TU)</strong> che mi porto in giro.</p>
+
+      <p>Il fisso ha la GPU. Il laptop ha la batteria. L'idea è ovvia: il laptop diventa uno schermo del fisso ogni volta che serve potenza. Anche per giocare, non solo per lavorare.</p>
+
+      <p>Detta così sembra banale. Installi un client di desktop remoto e via. Nella pratica ho sbattuto contro quattro problemi separati:</p>
+
+      <ul>
+        <li>arrivare al PC di casa senza aprire porte sul router e senza IP pubblico fisso;</li>
+        <li>streammare a una latenza da gioco, non da posta elettronica;</li>
+        <li>far entrare un desktop <strong>16:9</strong> in uno schermo <strong>16:10</strong> senza bande nere;</li>
+        <li>accendere una macchina <strong>spenta</strong> e portarla fino a Windows senza toccare niente.</li>
+      </ul>
+
+      <p>Questo articolo è il giro completo. Nessun pezzo è esotico da solo. Messi insieme però funzionano: premo un bottone su Home Assistant dal telefono, aspetto quaranta secondi, apro Moonlight e sono dentro.</p>
+
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>Setup di riferimento</strong>
+          Workstation dual-boot Fedora + Windows 11, due monitor fisici 16:9. Client: Acer Swift Go 14 SFG14-73-73TU, pannello OLED 14" 2880×1800 a 90 Hz. Quindi <strong>16:10</strong>, ed è da lì che nasce metà dell'articolo. Un Raspberry Pi acceso 24/7 con Home Assistant fa da nodo di risveglio.
+        </div>
+      </div>
+
+      <h2>1. La rete: Tailscale invece di WireGuard puro</h2>
+
+      <p>Sul <a href="openwrt_wireguard_proton.html">router di casa avevo già montato WireGuard</a>. Il primo istinto è stato ripetere lo schema: tunnel fra laptop e fisso, fine.</p>
+
+      <p>Poi ci ho ragionato. Per questo caso d'uso WireGuard puro è la scelta sbagliata. Non perché sia peggio: Tailscale è costruito proprio sopra WireGuard. Ma qui il problema non è cifrare il traffico. È <strong>trovare l'altro capo</strong>.</p>
+
+      <h3>Cosa aggiunge Tailscale</h3>
+
+      <p>Tailscale non è un protocollo alternativo. È WireGuard più tutta la roba noiosa che WireGuard, per scelta, si rifiuta di fare.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Control plane e data plane</strong>
+          Il <em class="term">data plane</em> è il traffico vero: i tuoi pacchetti cifrati che vanno da A a B. Qui Tailscale usa WireGuard, quindi stessa crittografia e stesso protocollo. Il <em class="term">control plane</em> è il coordinamento: chi sono i peer, che chiavi hanno, dove si trovano adesso. WireGuard il control plane non ce l'ha. Lo fai tu, a mano, scrivendo i file di configurazione. Tailscale ce lo mette e lo tiene su un suo server. La chiave privata però resta sul device e non passa mai da lì. Il coordinatore sa <em>chi</em> parla con chi, non <em>cosa</em> si dicono.
+        </div>
+      </div>
+
+      <p>Tre cose hanno fatto la differenza nel mio caso.</p>
+
+      <ol class="steps">
+        <li>
+          <strong>NAT traversal automatico</strong>
+          WireGuard puro vuole un <code>Endpoint</code> noto: IP pubblico stabile e porta UDP aperta. Per me significava port forward sul router più un DDNS da tenere aggiornato. Tailscale invece fa <em>UDP hole punching</em>. I due capi parlano con il server di coordinamento, scoprono che aspetto hanno visti da fuori, e bucano i rispettivi NAT da soli. Niente porte aperte, niente DDNS.
+        </li>
+        <li>
+          <strong>Roaming</strong>
+          Il laptop cambia rete di continuo. WiFi di casa, hotspot del telefono, WiFi del bar. Con WireGuard puro ogni cambio rompe l'endpoint. Tailscale se ne accorge e rinegozia il percorso in pochi secondi.
+        </li>
+        <li>
+          <strong>Gestione delle chiavi</strong>
+          Aggiungere un device è <code>tailscale up</code> più un login. Niente scambio manuale di chiavi pubbliche. Niente file <code>.conf</code> da tenere allineati su N macchine.
+        </li>
+      </ol>
+
+      <h3>Direct o relay: è qui che si decide tutto</h3>
+
+      <p>Questa è la parte importante. È dove la gente si arena e dà la colpa a Sunshine.</p>
+
+      <p>Tailscale prova sempre prima la connessione <strong>diretta</strong>, peer-to-peer. Se il buco nel NAT non riesce, non si arrende: passa a un <strong>relay DERP</strong>. Il tunnel continua a funzionare. La crittografia resta end-to-end. Tu non te ne accorgi.</p>
+
+      <p>Non te ne accorgi finché non provi a streammare un gioco. I DERP servono a garantire la raggiungibilità, non la banda. Il risultato tipico è restare inchiodati a pochi Mbit/s, con Moonlight che sputa un'immagine a blocchi.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Cos'è un relay DERP</strong>
+          <em class="term">DERP</em> sta per <em>Designated Encrypted Relay for Packets</em>. Sono server sparsi per il mondo che Tailscale tiene accesi come rete di salvataggio. Quando due nodi non si vedono direttamente, si passano i pacchetti attraverso il DERP più vicino. Per la sicurezza è innocuo: il relay inoltra byte cifrati, non ha le chiavi. Per il gaming è un disastro: fai due hop invece di uno, e condividi banda con chiunque altro stia usando quel relay.
+        </div>
+      </div>
+
+      <p>Quindi la prima cosa da fare, prima ancora di aprire Moonlight, è verificare di essere in diretta:</p>
+
+      <pre data-label="powershell / bash"><code>tailscale status
+# workstation  100.x.y.z  windows  -  direct 93.x.x.x:41641
+#                                     ^^^^^^ deve dire "direct"
+#                                     se dice relay "mil" sei sul DERP di Milano</code></pre>
+
+      <p>Se leggi <code>relay</code>, hai due strumenti per capire perché:</p>
+
+      <pre data-label="powershell / bash"><code>tailscale netcheck      # che NAT hai, quale DERP è più vicino,
+                        # se UPnP/NAT-PMP/PCP funzionano
+
+tailscale ping workstation
+# pong from workstation via DERP(mil) in 48ms
+# pong from workstation via 93.x.x.x:41641 in 14ms   <- trovato il diretto</code></pre>
+
+      <p><code>tailscale ping</code> è il più utile. Continua a provare, e spesso vedi le prime risposte passare dal DERP. Poi, dopo un paio di secondi, la stessa sessione si promuove a diretta. È normale: il P2P ci mette un attimo a stabilirsi.</p>
+
+      <p>Se resta ostinatamente su relay, la contromisura è mappare la porta UDP <code>41641</code> verso la workstation.</p>
+
+      <p>Sì, uno dei motivi per scegliere Tailscale era non aprire porte. Ma qui è diverso. È un'ottimizzazione, non un requisito: se il port forward salta, la VPN continua a funzionare in relay. Con WireGuard puro senza porta non ti connetti proprio. E dietro quella porta non c'è un servizio esposto: c'è WireGuard, che a un pacchetto non autenticato non risponde nemmeno.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <strong>Controlla anche dal lato client</strong>
+          Sotto CG-NAT mobile il diretto può fallire per colpa della rete <em>del laptop</em>. Test veloce: aggancia il laptop all'hotspot del telefono e rifai <code>tailscale status</code>. Se lì è diretto e sul WiFi del bar no, sai da che parte è il problema.
+        </div>
+      </div>
+
+      <h3>Il prezzo da pagare</h3>
+
+      <p>Tre contro reali, perché non è tutto gratis.</p>
+
+      <p><strong>Dipendi da un control plane di terzi.</strong> Se il coordinamento di Tailscale va giù, i tunnel già stabiliti reggono. Ma un device nuovo non si aggiunge. Se la cosa ti dà fastidio esiste <a href="https://github.com/juanfont/headscale" target="_blank" rel="noopener">Headscale</a>: una reimplementazione open source del server di coordinamento, che ti ospiti da solo. Stessi client ufficiali, control plane tuo.</p>
+
+      <p><strong>È più lento di WireGuard kernel.</strong> Su Linux WireGuard gira come modulo del kernel. Tailscale usa un'implementazione in userspace, quindi paga più context switch. Negli ultimi anni hanno recuperato molto con gli offload UDP, e su hardware moderno si superano i 10 Gbit/s. Ma se devi saturare una fibra fra due server con IP pubblico, WireGuard puro resta più veloce.</p>
+
+      <p><strong>MTU a 1280 byte.</strong> Tailscale è conservativo e tiene la MTU bassa per non avere mai frammentazione. Con WireGuard a mano staresti sui 1420. Per uno stream UDP cambia poco, ma sono più pacchetti per fotogramma.</p>
+
+      <p>Per me il bilancio è netto. Due device dietro NAT, uno dei quali si sposta di continuo, e niente da esporre. Tailscale vince. Se avessi due server fissi con IP pubblico userei WireGuard puro senza pensarci.</p>
+
+      <div class="diagram">
+        <div class="tailnet">
+          <div class="node-grid">
+            <div class="node">
+              <div class="node-icon">💻</div>
+              <div class="node-name">Swift Go 14</div>
+              <span class="node-role">client Moonlight<br>rete variabile</span>
+            </div>
+            <div class="node">
+              <div class="node-icon">🖥️</div>
+              <div class="node-name">Workstation</div>
+              <span class="node-role">host Sunshine<br>Windows + VDD</span>
+            </div>
+            <div class="node">
+              <div class="node-icon">🍓</div>
+              <div class="node-name">Raspberry Pi</div>
+              <span class="node-role">Home Assistant<br>acceso 24/7</span>
+            </div>
+          </div>
+          <p class="wire">◄──── WireGuard P2P diretto · UDP 41641 ────►</p>
+        </div>
+
+        <p class="drop">▼ magic packet — questo <b>non</b> passa dal tunnel</p>
+
+        <div class="lan-box">
+          <b>LAN di casa</b> · broadcast UDP verso la NIC on-board della workstation spenta
+        </div>
+
+        <p class="diagram-caption">
+          Tutti e tre i nodi sono nel tailnet. Ma solo il Pi può svegliare<br>
+          la workstation, perché il magic packet deve nascere <em>dentro</em> la LAN.
+        </p>
+      </div>
+
+      <h2>2. Lo streaming: Sunshine e Moonlight</h2>
+
+      <p>Sul video la coppia è <strong>Sunshine</strong> sulla workstation e <strong>Moonlight</strong> sul laptop. È l'implementazione open source del GameStream di NVIDIA, sopravvissuta dopo che NVIDIA lo ha dismesso.</p>
+
+      <p>Non uso RDP o AnyDesk perché sono pensati per il desktop, non per i 60 fps. Sunshine cattura il framebuffer, lo passa all'encoder hardware della GPU e lo spara in UDP. La CPU resta quasi a riposo. In LAN la latenza end-to-end sta sotto i 10 ms.</p>
+
+      <p>Da fuori casa, in P2P, dipende quasi solo dalla rete. Se hai 15 ms verso casa, avrai 15 ms in più rispetto alla LAN. Niente magie, ma niente overhead inutile.</p>
+
+      <p>Una cosa sola da impostare subito: il <strong>codec</strong>. HEVC se la GPU lo supporta, AV1 se ce l'hai su entrambi i lati. A parità di bitrate si vede molto meglio di H.264, e la banda in upload è la risorsa scarsa.</p>
+
+      <h3>Quanta banda serve davvero</h3>
+
+      <p>Lo stream viaggia <em>da</em> casa <em>verso</em> di te. Quindi il numero che conta è l'<strong>upload della linea di casa</strong>, che sulle FTTC è spesso un decimo del download. Upload di casa e download del client sono lo stesso numero: vale il più piccolo dei due, e di solito è quello di casa.</p>
+
+      <p>Questi sono i bitrate che uso come punto di partenza, in <strong>HEVC</strong>:</p>
+
+      <div class="table-wrap">
+        <table class="bw">
+          <thead>
+            <tr>
+              <th>Risoluzione</th>
+              <th>60 Hz</th>
+              <th>90 Hz</th>
+              <th>144 Hz</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1920×1080 &nbsp;<span style="color:var(--text-faint)">16:9</span></td>
+              <td>15 Mbps</td>
+              <td>21 Mbps</td>
+              <td>31 Mbps</td>
+            </tr>
+            <tr>
+              <td>1920×1200 &nbsp;<span style="color:var(--text-faint)">16:10</span></td>
+              <td>17 Mbps</td>
+              <td class="hl">24 Mbps</td>
+              <td>35 Mbps</td>
+            </tr>
+            <tr>
+              <td>2560×1440 &nbsp;<span style="color:var(--text-faint)">16:9</span></td>
+              <td>27 Mbps</td>
+              <td>38 Mbps</td>
+              <td>56 Mbps</td>
+            </tr>
+            <tr>
+              <td>2560×1600 &nbsp;<span style="color:var(--text-faint)">16:10</span></td>
+              <td>30 Mbps</td>
+              <td>42 Mbps</td>
+              <td>62 Mbps</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="table-note">
+        In evidenza la combinazione che uso io: 1920×1200 a 90 Hz.<br>
+        Con H.264 aggiungi circa il 40%. Con AV1 togli circa il 20%.
+      </p>
+
+      <p>Sono bitrate <em>video</em>. Il traffico reale è più alto, perché ci sono anche audio, correzione d'errore e header dei pacchetti: conta un 15% in più. Poi lascia un 20% di margine sulla linea, altrimenti basta una qualsiasi altra cosa che scarica in casa per rovinarti la sessione.</p>
+
+      <p>In pratica, la regola è questa:</p>
+
+      <pre data-label="regola della banda"><code>upload necessario ≈ bitrate × 1,45
+
+esempio: 1920x1200 @ 90 Hz  ->  24 × 1,45 = ~35 Mbps di upload reale</code></pre>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>Non mettere il bitrate al massimo per principio</strong>
+          È l'errore più comune. Un bitrate troppo alto su un uplink che non regge non ti dà più qualità: ti dà pacchetti persi, artefatti e stuttering. Misura l'upload reale con uno speedtest, applica la regola sopra, e parti da lì. È anche il motivo per cui non streammo a 2880×1800: alzare la risoluzione costa banda in modo quadratico, e il guadagno visivo su 14 pollici è quasi nullo.
+        </div>
+      </div>
+
+      <h2>3. Il mismatch degli schermi</h2>
+
+      <p>Qui arriva il problema che non mi aspettavo. I miei monitor fisici sono <strong>16:9</strong>. Il pannello dello Swift Go è <strong>2880×1800</strong>, cioè <strong>16:10</strong>.</p>
+
+      <p>Sono due geometrie diverse. Non c'è modo di far entrare bene l'una nell'altra. O ti tieni le bande nere sopra e sotto, buttando via il 10% di uno schermo da 14 pollici, o stiri l'immagine e ti ritrovi i cerchi ovali.</p>
+
+      <p>La prima idea è impostare i monitor fisici a 1920×1200. Non funziona, e il motivo è interessante.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>L'EDID, cioè perché decide il monitor e non tu</strong>
+          L'<em class="term">EDID</em> è un blocchetto di dati che ogni monitor manda alla scheda video appena lo colleghi. Contiene modello, dimensione fisica e soprattutto l'elenco delle risoluzioni che sa fare. Windows non inventa modalità video: propone quelle dichiarate nell'EDID. Un monitor 16:9 non ha nessuna modalità 16:10 nel suo EDID, quindi quella risoluzione non ti compare proprio nel menu. E anche forzandola, il pannello ha un numero fisico di pixel in quel rapporto. La stireresti comunque.
+        </div>
+      </div>
+
+      <p>La soluzione è smettere di combattere con l'hardware. Si aggiunge un monitor che non esiste.</p>
+
+      <p>Un <strong>Virtual Display Driver</strong> è un driver <em>indirect display</em>. Windows lo vede come una scheda video con un monitor attaccato, EDID compreso. Dietro però non c'è nessuna uscita fisica: c'è solo un framebuffer in RAM. Che è esattamente quello che serve, perché Sunshine cattura framebuffer, non cavi HDMI.</p>
+
+      <p>Uso il <a href="https://github.com/VirtualDrivers/Virtual-Display-Driver" target="_blank" rel="noopener">Virtual Display Driver</a> del progetto VirtualDrivers. Si installa in <code>C:\VirtualDisplayDriver\</code> e si configura via XML. Questa è la mia configurazione, tagliata sullo Swift Go:</p>
+
+      <pre data-label="C:\VirtualDisplayDriver\vdd_settings.xml"><code>&lt;?xml version='1.0' encoding='utf-8'?&gt;
+&lt;vdd_settings&gt;
+    &lt;monitors&gt;
+        &lt;count&gt;1&lt;/count&gt;
+    &lt;/monitors&gt;
+    &lt;gpu&gt;
+        &lt;friendlyname&gt;default&lt;/friendlyname&gt;
+    &lt;/gpu&gt;
+    &lt;global&gt;
+        &lt;!-- Frequenze replicate su TUTTE le risoluzioni sotto --&gt;
+        &lt;g_refresh_rate&gt;60&lt;/g_refresh_rate&gt;
+        &lt;g_refresh_rate&gt;90&lt;/g_refresh_rate&gt;
+        &lt;g_refresh_rate&gt;120&lt;/g_refresh_rate&gt;
+        &lt;g_refresh_rate&gt;144&lt;/g_refresh_rate&gt;
+    &lt;/global&gt;
+    &lt;resolutions&gt;
+        &lt;!-- Standard 16:9 --&gt;
+        &lt;resolution&gt;&lt;width&gt;1920&lt;/width&gt;&lt;height&gt;1080&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+        &lt;resolution&gt;&lt;width&gt;2560&lt;/width&gt;&lt;height&gt;1440&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+        &lt;!-- 16:10 nativi per lo Swift Go 14 --&gt;
+        &lt;resolution&gt;&lt;width&gt;1920&lt;/width&gt;&lt;height&gt;1200&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+        &lt;resolution&gt;&lt;width&gt;2560&lt;/width&gt;&lt;height&gt;1600&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+        &lt;resolution&gt;&lt;width&gt;2880&lt;/width&gt;&lt;height&gt;1800&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+    &lt;/resolutions&gt;
+    &lt;options&gt;
+        &lt;HardwareCursor&gt;true&lt;/HardwareCursor&gt;
+        &lt;SDR10bit&gt;false&lt;/SDR10bit&gt;
+        &lt;HDRPlus&gt;false&lt;/HDRPlus&gt;
+        &lt;logging&gt;false&lt;/logging&gt;
+    &lt;/options&gt;
+&lt;/vdd_settings&gt;</code></pre>
+
+      <p>Tre note, perché la prima volta mi hanno confuso.</p>
+
+      <p><strong>Il <code>refresh_rate</code> dentro ogni risoluzione non è la frequenza di quella modalità.</strong> È una frequenza in più, che si somma a quelle del blocco <code>&lt;global&gt;</code>. Ogni risoluzione elencata finisce nell'EDID virtuale con 30, 60, 90, 120 e 144 Hz disponibili.</p>
+
+      <p><strong>I 90 Hz non sono messi a caso.</strong> Sono la frequenza nativa del pannello OLED dello Swift Go. Far combaciare la frequenza del display virtuale con quella del client evita il micro-stuttering da frequenze non multiple. È quel fastidio che senti ma non sai spiegare.</p>
+
+      <p><strong>Meno modalità elenchi, meglio è.</strong> Ogni voce è una riga nell'EDID virtuale. Una lista chilometrica rende solo più confuso il menu di Windows.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>Dopo ogni modifica va ricaricato il driver</strong>
+          L'XML viene letto all'inizializzazione, non a ogni frame. Se lo modifichi e non cambia niente, non hai sbagliato: devi disabilitare e riabilitare il dispositivo da Gestione Dispositivi. È il classico momento in cui perdi venti minuti a cercare un errore che non c'è.
+        </div>
+      </div>
+
+      <h2>4. Far sparire i monitor di casa</h2>
+
+      <p>Risolto l'aspect ratio, resta un problema di buon senso. Se mi collego da remoto e i monitor di casa restano accesi, il mio desktop è in bella vista in salotto, col mouse che si muove da solo. E sono due pannelli accesi per niente.</p>
+
+      <p>Spegnerli col pulsante non basta. Per Windows quei display esistono ancora: il desktop continua a estendersi su di loro e le finestre ci finiscono sopra. Da remoto ti ritrovi un pezzo di desktop irraggiungibile.</p>
+
+      <p>Vanno <strong>disattivati a livello di sistema</strong>, così Windows rimappa tutto sul solo display virtuale. Farlo a mano ogni volta da Impostazioni → Schermo è una noia. Quindi: due script.</p>
+
+      <p>Si appoggiano al modulo PowerShell <a href="https://www.powershellgallery.com/packages/DisplayConfig" target="_blank" rel="noopener">DisplayConfig</a> di MartinGC94, che espone le API CCD di Windows in modo civile:</p>
+
+      <pre data-label="powershell (una volta sola)"><code>Install-Module DisplayConfig -Scope CurrentUser
+
+Get-DisplayInfo
+# elenca i display con DisplayId, Active, IsPrimary
+# da qui ho scoperto che i fisici sono 1 e 2, il virtuale è 3</code></pre>
+
+      <p>Questa è la mappa dei due stati:</p>
+
+      <div class="display-map">
+        <div class="dmap-panel">
+          <div class="dmap-title"><b>local.bat</b> — sono a casa</div>
+          <div class="dmap-stage">
+            <div class="mon-wrap is-primary">
+              <div class="mon mon-169 mon-on">1</div>
+              <span class="mon-label">fisico · 16:9<br><b>primario</b></span>
+            </div>
+            <div class="mon-wrap">
+              <div class="mon mon-169 mon-on">2</div>
+              <span class="mon-label">fisico · 16:9<br>&nbsp;</span>
+            </div>
+            <div class="mon-wrap">
+              <div class="mon mon-1610 mon-off">3</div>
+              <span class="mon-label">VDD<br>disattivato</span>
+            </div>
+          </div>
+          <p class="dmap-cmd">Enable 1,2 → primary 1 → Disable 3</p>
+        </div>
+
+        <div class="dmap-panel">
+          <div class="dmap-title"><b>remote.bat</b> — sono fuori</div>
+          <div class="dmap-stage">
+            <div class="mon-wrap">
+              <div class="mon mon-169 mon-off">1</div>
+              <span class="mon-label">fisico<br>disattivato</span>
+            </div>
+            <div class="mon-wrap">
+              <div class="mon mon-169 mon-off">2</div>
+              <span class="mon-label">fisico<br>disattivato</span>
+            </div>
+            <div class="mon-wrap is-primary">
+              <div class="mon mon-1610 mon-active">3</div>
+              <span class="mon-label">VDD · 16:10<br><b>primario</b></span>
+            </div>
+          </div>
+          <p class="dmap-cmd">Enable 3 → primary 3 → Disable 1,2</p>
+        </div>
+      </div>
+
+      <p><strong>Il display virtuale sta a destra, dopo i due fisici.</strong> All'inizio l'avevo messo in mezzo, e ho fatto male. Quando sono attivi tutti e tre, il mouse deve attraversare uno schermo che non vedi per passare dal monitor 1 al monitor 2. Il puntatore sparisce nel nulla per mezzo secondo. Mettendolo a destra i due fisici restano attaccati e il layout torna sensato.</p>
+
+      <p>I due script sono queste due righe:</p>
+
+      <pre data-label="remote.bat" class="wrap"><code>@echo off
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Import-Module DisplayConfig; Enable-Display -DisplayId 3; Set-DisplayPrimary -DisplayId 3; Disable-Display -DisplayId 1,2"
+exit</code></pre>
+
+      <pre data-label="local.bat" class="wrap"><code>@echo off
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Import-Module DisplayConfig; Enable-Display -DisplayId 1,2; Start-Sleep -Seconds 2; Set-DisplayPrimary -DisplayId 1; Disable-Display -DisplayId 3"
+exit</code></pre>
+
+      <p><strong>L'ordine dei comandi non è modificabile.</strong> Prima si attiva il display di destinazione. Poi lo si promuove a primario. Solo alla fine si disattiva quello vecchio.</p>
+
+      <p>Se inverti, per un istante Windows si ritrova con zero display attivi. A quel punto o ti blocca l'operazione, o rimappa tutto in modo creativo e ti lascia la sessione remota cieca. Che è il tipo di errore che non puoi permetterti quando non sei davanti al PC.</p>
+
+      <p>Lo <code>Start-Sleep -Seconds 2</code> c'è solo in <code>local.bat</code>. Il motivo è fisico: riattivare un monitor vero vuol dire rifare l'handshake sul cavo, leggere l'EDID, agganciare il segnale. Ci vogliono qualche centinaio di millisecondi. Se gli chiedi di diventare primario prima che sia pronto, il comando parte a vuoto. Il display virtuale invece si attiva subito, perché non c'è nessun cavo da negoziare.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>Gli ID dei display non sono eterni</strong>
+          Sono stabili finché non tocchi niente. Cambiano se scolleghi un monitor, cambi porta sulla GPU o reinstalli il VDD. Il giorno che uno script fa qualcosa di strano, il primo comando da lanciare è <code>Get-DisplayInfo</code>. Per qualcosa di più robusto il modulo ha anche <code>Get-DisplayConfig</code> e <code>Use-DisplayConfig</code>: salvi l'intero layout in un file con <code>Export-Clixml</code> e lo riapplichi tale e quale, senza ragionare per ID.
+        </div>
+      </div>
+
+      <p>Oggi li lancio a mano, con due scorciatoie sul desktop. Doppio click su <code>remote.bat</code> prima di uscire, doppio click su <code>local.bat</code> quando torno. Funziona, ma è il pezzo meno elegante del setup. Se mi dimentico, da remoto mi ritrovo il desktop spalmato su tre schermi.</p>
+
+      <div class="callout callout-info">
+        <span class="callout-icon">🔧</span>
+        <div class="callout-body">
+          <strong>La miglioria che ho in lista</strong>
+          Sunshine ha una sezione <strong>Command Preparations</strong>, con due campi <em>Do</em> e <em>Undo</em>. Il primo gira all'apertura della sessione, il secondo alla chiusura. Mettendo <code>remote.bat</code> in <em>Do</em> e <code>local.bat</code> in <em>Undo</em>, i monitor si spengono da soli quando Moonlight si connette e tornano su appena chiudo. Stesso lavoro, agganciato allo stream invece che alla mia memoria. Unica attenzione: Sunshine gira come servizio, quindi gli script devono funzionare anche in quel contesto. Percorsi assoluti, niente dipendenze dal profilo utente.
+        </div>
+      </div>
+
+      <h2>5. Accendere un PC spento</h2>
+
+      <p>Tutto quello scritto finora presuppone una workstation accesa. Ma tenere acceso 24/7 un fisso con GPU dedicata per usarlo tre sere a settimana non ha senso. Né in bolletta né in rumore. Serve il <strong>Wake-on-LAN</strong>.</p>
+
+      <p>E qui c'è il paradosso che rende il Raspberry Pi un componente obbligatorio, non un accessorio comodo.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">📖</span>
+        <div class="callout-body">
+          <strong>Perché il WoL non può passare dentro Tailscale</strong>
+          Il <em class="term">magic packet</em> è un pacchetto UDP con sei byte <code>FF</code> seguiti da sedici ripetizioni del MAC della scheda da svegliare. Non ha una sessione, non riceve risposta: è un grido nel buio. A intercettarlo è la <strong>scheda di rete</strong>, che a PC spento resta alimentata dai 5 volt di standby e continua a guardare il traffico. Ora il punto: Tailscale è un demone che gira nel sistema operativo. Se il PC è spento il sistema operativo non c'è, il demone non gira, e quell'indirizzo <code>100.x.y.z</code> <strong>non esiste più nel tailnet</strong>. Non puoi mandare un magic packet a un nodo Tailscale spento, perché quel nodo, spento, non è più un nodo. Serve qualcosa di già acceso dentro la LAN che spari il pacchetto.
+        </div>
+      </div>
+
+      <p>Da qui la catena:</p>
+
+      <ol class="steps">
+        <li>
+          <strong>Dal telefono apro Home Assistant</strong>
+          Il telefono è un nodo del tailnet, il Pi pure. Si parlano in P2P cifrato. Nessuna porta aperta sul router, nessun cloud di mezzo.
+        </li>
+        <li>
+          <strong>Il Pi riceve il comando</strong>
+          Home Assistant ha l'integrazione <code>wake_on_lan</code> nativa. Le dai il MAC della workstation e l'indirizzo di broadcast, e diventa un bottone come un altro.
+        </li>
+        <li>
+          <strong>Il magic packet nasce dentro la LAN</strong>
+          Questo è il passaggio che il tunnel non potrebbe fare. Il Pi è fisicamente sulla rete di casa. Il broadcast arriva alla NIC della workstation, la workstation si accende.
+        </li>
+        <li>
+          <strong>Quaranta secondi e Sunshine è su</strong>
+          Boot, GRUB che sceglie Windows da solo, avvio del servizio Sunshine, Tailscale che rientra nel tailnet.
+        </li>
+      </ol>
+
+      <h3>Sapere se è davvero partita</h3>
+
+      <p>Accendere alla cieca e sperare non mi bastava. Se il boot si pianta su un aggiornamento o un chkdsk, io lo scoprirei solo perché Moonlight non trova l'host.</p>
+
+      <p>Quindi in Home Assistant ho messo un <strong>ping alla workstation ogni 30 secondi</strong>. Diventa un sensore binario: acceso o spento, visibile nella stessa schermata del bottone di accensione.</p>
+
+      <pre data-label="configuration.yaml"><code>binary_sensor:
+  - platform: ping
+    host: 192.168.1.50          # IP LAN della workstation
+    name: "Workstation online"
+    count: 2
+    scan_interval: 30</code></pre>
+
+      <p>Trenta secondi sono il compromesso giusto. Abbastanza frequente da vedere la macchina comparire mentre sto ancora guardando il telefono. Abbastanza raro da non pesare su niente.</p>
+
+      <p>Il valore vero però non è il pallino verde. È poter dire la differenza fra "il magic packet non è arrivato" e "il PC è acceso ma Sunshine non risponde". Sono due guasti completamente diversi, e senza il ping li vedresti uguali.</p>
+
+      <h3>La NIC PCIe che mi ha fatto perdere due serate</h3>
+
+      <p>Questa è la parte che nessuna guida ti dice.</p>
+
+      <p>Il WoL funzionava benissimo. Spegnevo il PC, mandavo il pacchetto, si accendeva. Poi però bastava una cosa qualsiasi. Un micro-blackout di quelli che ti fanno lampeggiare le luci. O staccare la ciabatta per pulire. E il WoL smetteva di funzionare, in silenzio.</p>
+
+      <p>Il problema era la <strong>scheda di rete su bus PCI Express</strong>.</p>
+
+      <p>Quando il PC si spegne, la NIC deve restare alimentata dai 5 V di standby, tenere in memoria il proprio MAC e restare in ascolto. Su una scheda PCIe aggiuntiva, se l'alimentazione salta del tutto, quello stato si perde. Al ritorno della corrente la scheda si ripresenta vergine, col WoL disabilitato. E nessuno lo riabilita, perché il sistema operativo non parte mai.</p>
+
+      <p>Ho provato tutto il repertorio da BIOS. <code>AC Recovery</code>, le impostazioni ACPI, il PCIe power management, il <em>Deep Sleep</em> disattivato. Nessuna combinazione ha risolto in modo affidabile. La logica di risveglio di una scheda aggiuntiva dipende da come la scheda madre le distribuisce lo standby, e su quello non hai controllo.</p>
+
+      <p>La soluzione è stata banale e definitiva: <strong>ho spostato il cavo di rete sulla NIC integrata nella scheda madre</strong>. Le NIC on-board sono cablate al chipset e progettate insieme alla gestione ACPI della piattaforma. Reggono lo stato di WoL anche dopo una perdita totale di alimentazione, perché è il firmware della scheda madre a ripristinarlo. Da quel giorno, zero risvegli mancati.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <strong>Il test che devi fare davvero</strong>
+          Non fermarti a "spengo e riaccendo da remoto, funziona". Il test vero è: spegni il PC, <strong>stacca fisicamente la corrente</strong> per un minuto, riattaccala, e <em>poi</em> manda il magic packet. Se si accende, il tuo WoL sopravvive ai blackout. Controlla anche che in Windows, nelle proprietà della scheda di rete, sia attivo "Consenti al dispositivo di riattivare il computer". E che il <em>Fast Startup</em> sia <strong>disabilitato</strong>: l'avvio rapido non è un vero spegnimento, e su molte schede manda in vacca il WoL.
+        </div>
+      </div>
+
+      <h2>6. Convincere GRUB a non aspettarmi</h2>
+
+      <p>Ultimo pezzo, e il più stupido. La macchina è in dual-boot. Il WoL la accende, il BIOS passa la palla a GRUB, e GRUB si ferma sul menu ad aspettare che qualcuno scelga.</p>
+
+      <p>Risultato: PC acceso, corrente consumata, Sunshine mai partito. Il fallimento peggiore, quello che consuma senza dare niente.</p>
+
+      <p>La soluzione è impostare Windows come voce di default. Su Fedora, da root:</p>
+
+      <pre data-label="root@fedora"><code># 1. trova il titolo esatto della voce Windows
+grep -i 'menuentry' /boot/grub2/grub.cfg | grep -i windows
+
+# 2. impostala come default persistente
+grub2-set-default "Windows Boot Manager (su /dev/nvme0n1p1)"
+
+# 3. verifica
+grub2-editenv list</code></pre>
+
+      <p>Se la voce Windows non compare, è perché Fedora tiene <code>os-prober</code> disabilitato di default. Si abilita in <code>/etc/default/grub</code>:</p>
+
+      <pre data-label="/etc/default/grub"><code>GRUB_DISABLE_OS_PROBER=false
+GRUB_DEFAULT=saved
+GRUB_TIMEOUT=5</code></pre>
+
+      <p>e poi si rigenera la configurazione:</p>
+
+      <pre data-label="root@fedora"><code>grub2-mkconfig -o /boot/grub2/grub.cfg</code></pre>
+
+      <p>Il <code>GRUB_TIMEOUT</code> a 5 secondi invece di 0 è voluto. Mi lascia il tempo di scegliere Fedora quando sono seduto davanti. Da remoto costa cinque secondi su un boot che ne richiede quaranta.</p>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <strong>Il trucco inverso: <code>grub2-reboot</code></strong>
+          Il default è Windows, ma a volte serve Fedora. Da dentro Windows non posso cambiare GRUB. Posso però pianificare il contrario: da Fedora, <code>grub2-reboot "Windows Boot Manager"</code> imposta quella voce <strong>solo per il riavvio successivo</strong>, poi il default torna quello di prima. Usa e getta, comodissimo per "riavviami nell'altro sistema una volta sola" senza rischiare di restare bloccato nel sistema sbagliato.
+        </div>
+      </div>
+
+      <h2>Il giro completo</h2>
+
+      <p>Rimesso in fila, dal telefono al gioco:</p>
+
+      <ol class="steps">
+        <li>
+          <strong>Apro Home Assistant e premo il bottone</strong>
+          Il Pi manda il magic packet in broadcast sulla LAN. La NIC on-board lo riceve e accende la macchina.
+        </li>
+        <li>
+          <strong>Guardo il sensore ping</strong>
+          Entro un minuto deve diventare verde. Se resta rosso, il problema è il risveglio e non lo streaming.
+        </li>
+        <li>
+          <strong>GRUB sceglie Windows da solo</strong>
+          Cinque secondi di timeout, poi parte il default. Nessuno tocca niente.
+        </li>
+        <li>
+          <strong>Apro Moonlight sullo Swift Go</strong>
+          Se ho lanciato <code>remote.bat</code> prima di uscire, il desktop è già tutto sul display virtuale in 16:10 e i monitor di casa sono neri.
+        </li>
+        <li>
+          <strong>Gioco</strong>
+          1920×1200 a 90 Hz, HEVC, ~24 Mbps. GPU di casa, batteria del laptop.
+        </li>
+      </ol>
+
+      <h2>Cosa non è ancora perfetto</h2>
+
+      <p><strong>Gli script a mano.</strong> Devono finire nei Command Preparations di Sunshine. Finché dipendono dal fatto che io mi ricordi di lanciarli, è un setup automatizzato all'80%.</p>
+
+      <p><strong>Non c'è spegnimento automatico.</strong> Accendo da remoto, ma spengo a mano da dentro Windows. La chiusura naturale del cerchio sarebbe un'automazione in Home Assistant che spegne la workstation dopo N minuti senza sessioni Moonlight attive.</p>
+
+      <p><strong>Nel tailnet tutti parlano con tutti.</strong> È il default di Tailscale, e per tre nodi miei va benissimo. Il giorno che ci attacco un device meno fidato, o condivido un nodo con qualcuno, vanno scritte le ACL per limitare il laptop alle sole porte di Sunshine.</p>
+
+      <div class="callout callout-ok">
+        <span class="callout-icon">✓</span>
+        <div class="callout-body">
+          <strong>Il risultato</strong>
+          Una workstation che vive spenta. Si accende da un bottone sul telefono, arriva da sola a Windows, e si presenta con uno schermo che non esiste ma ha esattamente la forma del laptop che ho in mano. A casa i monitor restano neri. Niente porte aperte sul router, niente IP pubblico, niente servizi esposti. Il pezzo più difficile non è stato nessuno di quelli software: è stato capire che la scheda di rete sbagliata può rendere inaffidabile tutto il resto.
+        </div>
+      </div>
+
+      <h2>Riferimenti</h2>
+
+      <ul>
+        <li><a href="https://tailscale.com/compare/wireguard" target="_blank" rel="noopener">Tailscale — confronto con WireGuard</a></li>
+        <li><a href="https://tailscale.com/blog/how-nat-traversal-works" target="_blank" rel="noopener">How NAT traversal works</a></li>
+        <li><a href="https://github.com/juanfont/headscale" target="_blank" rel="noopener">Headscale</a> — control plane self-hosted</li>
+        <li><a href="https://github.com/LizardByte/Sunshine" target="_blank" rel="noopener">Sunshine</a> e <a href="https://moonlight-stream.org/" target="_blank" rel="noopener">Moonlight</a></li>
+        <li><a href="https://github.com/VirtualDrivers/Virtual-Display-Driver" target="_blank" rel="noopener">Virtual Display Driver</a></li>
+        <li><a href="https://github.com/MartinGC94/DisplayConfig" target="_blank" rel="noopener">DisplayConfig</a> — il modulo PowerShell dietro i due .bat</li>
+      </ul>
+
+    </div><!-- /article-body -->
+
+  </article>
+
+  <footer>
+    <span>© 2026 Gabbro</span>
+    <a href="../index.html">← torna agli articoli</a>
+  </footer>
+
+</body>
+</html>
