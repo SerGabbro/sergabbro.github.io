@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laboratorio di campionamento — Gabbro</title>
+  <meta name="description" content="Strumento interattivo sul campionamento: repliche spettrali, aliasing, filtro ideale di ricostruzione, mantenimento di ordine zero, campionamento passa-banda e confronto con DFT/IFFT.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Laboratorio di campionamento">
+  <meta property="og:url" content="https://sergabbro.github.io/tools/sampling.html">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e63946'/%3E%3Crect x='7' y='7' width='18' height='18' rx='4' fill='%2307080a'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/article.css">
+  <link rel="stylesheet" href="../assets/css/sampling.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
+  <header class="navbar">
+    <div class="wrap wrap-wide">
+      <a href="../index.html" class="brand" aria-label="Gabbro, home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Gabbro</span>
+        <span class="brand-role">ing. elettronico</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti" aria-current="page">Strumenti</a>
+        <a href="../index.html#chi-sono">Chi sono</a>
+        <a href="https://github.com/sergabbro" class="ext" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenuto" class="wrap wrap-wide lab-page">
+
+    <header class="lab-head rise">
+      <nav class="breadcrumb" aria-label="Percorso">
+        <a href="../index.html">gabbro</a><span class="sep">/</span>
+        <a href="../index.html#strumenti">strumenti</a><span class="sep">/</span>
+        <span>campionamento</span>
+      </nav>
+      <span class="eyebrow">Strumento · DSP</span>
+      <h1>Laboratorio di campionamento</h1>
+      <p class="lead">Scegli un segnale, campionalo alla frequenza che vuoi e osserva lo spettro replicato, l'aliasing e la ricostruzione con un filtro ideale. Gli spettri e le ricostruzioni sono calcolati in forma chiusa; la DFT dei campioni è disponibile per il confronto.</p>
+      <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
+      <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
+    </header>
+
+    <div class="lab rise rise-1">
+
+      <!-- ── CONTROLLI ── -->
+      <aside class="lab-side" aria-label="Parametri">
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">Esempi</h2>
+          <div class="presets" id="presets">
+            <button type="button" data-preset="over">Sovracampionato</button>
+            <button type="button" data-preset="nyquist">Limite di Nyquist</button>
+            <button type="button" data-preset="alias">Aliasing</button>
+            <button type="button" data-preset="bandpass">Passa-banda</button>
+            <button type="button" data-preset="square">Onda quadra</button>
+            <button type="button" data-preset="zoh">Mantenimento ZOH</button>
+          </div>
+        </section>
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">Segnale</h2>
+          <label class="field">
+            <span class="field-label">Forma</span>
+            <select id="sig">
+              <optgroup label="A banda limitata (definiti dallo spettro)">
+                <option value="tri">Spettro triangolare</option>
+                <option value="rect">Spettro rettangolare</option>
+                <option value="trap">Spettro trapezoidale</option>
+                <option value="rc">Coseno rialzato (β = 0,5)</option>
+                <option value="bp">Passa-banda (2–3 kHz)</option>
+              </optgroup>
+              <optgroup label="Periodici (non a banda limitata)">
+                <option value="square">Onda quadra</option>
+                <option value="ptri">Onda triangolare</option>
+                <option value="saw">Dente di sega</option>
+                <option value="tones">Tre toni</option>
+              </optgroup>
+            </select>
+          </label>
+          <label class="field" id="f0-field">
+            <span class="field-row"><span class="field-label">Fondamentale f₀</span><output id="f0-out"></output></span>
+            <input type="range" id="f0" min="0.1" max="2" step="0.01" value="0.4">
+          </label>
+          <p class="field-note" id="sig-note"></p>
+        </section>
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">Campionamento</h2>
+          <label class="field">
+            <span class="field-row"><span class="field-label">Frequenza f<sub>s</sub></span><output id="fs-out"></output></span>
+            <input type="range" id="fs" min="0.2" max="12" step="0.01" value="4">
+          </label>
+          <label class="field">
+            <span class="field-row"><span class="field-label">Fase di campionamento</span><output id="ph-out"></output></span>
+            <input type="range" id="ph" min="0" max="0.99" step="0.01" value="0">
+          </label>
+          <div class="field">
+            <span class="field-label">Campioni</span>
+            <div class="seg" role="radiogroup" aria-label="Tipo di campionamento">
+              <button type="button" role="radio" data-hold="ideal" aria-checked="true">Impulsi ideali</button>
+              <button type="button" role="radio" data-hold="zoh" aria-checked="false">ZOH</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">Filtro di ricostruzione</h2>
+          <div class="field">
+            <div class="seg" role="radiogroup" aria-label="Tipo di filtro">
+              <button type="button" role="radio" data-filter="lp" aria-checked="true">Passa-basso</button>
+              <button type="button" role="radio" data-filter="bp" aria-checked="false">Passa-banda</button>
+            </div>
+          </div>
+          <label class="field" id="fc-field">
+            <span class="field-row"><span class="field-label">Taglio f<sub>c</sub></span><output id="fc-out"></output></span>
+            <input type="range" id="fc" min="0.05" max="12" step="0.01" value="2">
+          </label>
+          <label class="field" id="f1-field">
+            <span class="field-row"><span class="field-label">Banda: f<sub>1</sub></span><output id="f1-out"></output></span>
+            <input type="range" id="f1" min="0" max="12" step="0.01" value="2">
+          </label>
+          <label class="field" id="f2-field">
+            <span class="field-row"><span class="field-label">Banda: f<sub>2</sub></span><output id="f2-out"></output></span>
+            <input type="range" id="f2" min="0.05" max="12" step="0.01" value="3">
+          </label>
+          <label class="toggle" id="lock-field">
+            <input type="checkbox" id="lock" checked>
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span>Aggancia f<sub>c</sub> a f<sub>s</sub>/2</span>
+          </label>
+          <p class="field-note">I bordi del filtro si possono trascinare anche sul grafico dello spettro campionato.</p>
+        </section>
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">Visualizzazione</h2>
+          <label class="toggle">
+            <input type="checkbox" id="show-replicas" checked>
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span>Repliche separate</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="show-error">
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span>Errore di ricostruzione</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="show-dft">
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span>Confronto con DFT/IFFT</span>
+          </label>
+        </section>
+
+      </aside>
+
+      <!-- ── GRAFICI ── -->
+      <section class="lab-main" aria-label="Grafici">
+
+        <div class="lab-stats">
+          <div class="stat"><span class="stat-label">f<sub>s</sub></span><span class="stat-value" id="st-fs">—</span></div>
+          <div class="stat"><span class="stat-label" id="st-nyq-label">2B (Nyquist)</span><span class="stat-value" id="st-nyq">—</span></div>
+          <div class="stat"><span class="stat-label">Campioni in finestra</span><span class="stat-value" id="st-n">—</span></div>
+          <div class="stat"><span class="stat-label">SNR ricostruzione</span><span class="stat-value" id="st-snr">—</span></div>
+          <div class="stat stat-wide" id="st-status-box"><span class="stat-label">Diagnosi</span><ul class="diag" id="st-diag"></ul></div>
+        </div>
+
+        <figure class="plot">
+          <figcaption class="plot-head">
+            <h3>Segnale nel tempo e campioni</h3>
+            <span class="plot-meta" id="m-time"></span>
+          </figcaption>
+          <canvas id="c-time" class="h-lg"></canvas>
+          <div class="legend">
+            <span><i class="sw sw-sig"></i>x(t)</span>
+            <span><i class="sw sw-smp dot"></i>campioni x[n]</span>
+            <span class="if-zoh"><i class="sw sw-smp"></i>uscita ZOH</span>
+          </div>
+        </figure>
+
+        <figure class="plot">
+          <figcaption class="plot-head">
+            <h3>Spettro del segnale |X(f)|</h3>
+            <span class="plot-meta" id="m-spec"></span>
+          </figcaption>
+          <canvas id="c-spec" class="h-sm"></canvas>
+        </figure>
+
+        <figure class="plot">
+          <figcaption class="plot-head">
+            <h3>Spettro del segnale campionato T<sub>s</sub>·|X<sub>s</sub>(f)| e filtro</h3>
+            <span class="plot-meta" id="m-samp"></span>
+          </figcaption>
+          <canvas id="c-samp" class="h-lg"></canvas>
+          <div class="legend">
+            <span><i class="sw sw-r0"></i>replica k = 0</span>
+            <span><i class="sw sw-rk"></i>repliche k ≠ 0</span>
+            <span><i class="sw sw-alias area"></i>sovrapposizione (aliasing)</span>
+            <span><i class="sw sw-filter area"></i>filtro ideale</span>
+            <span class="if-dft"><i class="sw sw-dft dot"></i>DFT dei campioni</span>
+          </div>
+        </figure>
+
+        <figure class="plot">
+          <figcaption class="plot-head">
+            <h3>Ricostruzione dopo il filtro</h3>
+            <span class="plot-meta" id="m-rec"></span>
+          </figcaption>
+          <canvas id="c-rec" class="h-lg"></canvas>
+          <div class="legend">
+            <span><i class="sw sw-sig"></i>x(t) originale</span>
+            <span><i class="sw sw-rec"></i>x<sub>r</sub>(t) ricostruito</span>
+            <span class="if-err"><i class="sw sw-alias"></i>errore x<sub>r</sub> − x</span>
+            <span class="if-dft"><i class="sw sw-dft dash"></i>ricostruzione via IFFT</span>
+          </div>
+        </figure>
+
+      </section>
+    </div>
+
+    <!-- barra rapida su mobile -->
+    <div class="lab-quick" aria-label="Frequenza di campionamento">
+      <span class="lab-quick-label">f<sub>s</sub></span>
+      <input type="range" id="fs-quick" min="0.2" max="12" step="0.01" value="4" aria-label="Frequenza di campionamento">
+      <output id="fs-quick-out"></output>
+    </div>
+
+    <!-- ── TEORIA ── -->
+    <article class="article-shell lab-notes">
+      <div class="article-body">
+
+        <h2>Che cosa mostra lo strumento</h2>
+
+        <p>Il campionamento ideale moltiplica il segnale per un treno di impulsi con periodo T<sub>s</sub> = 1/f<sub>s</sub>. In frequenza, il prodotto diventa una convoluzione con un treno di impulsi di passo f<sub>s</sub>: lo spettro del segnale campionato è la somma di infinite copie dello spettro originale, traslate di multipli di f<sub>s</sub>.</p>
+
+        <div class="formula">X<sub>s</sub>(f) = f<sub>s</sub> · Σ<sub>k</sub> X(f − k·f<sub>s</sub>)</div>
+
+        <p>Nel grafico lo spettro è moltiplicato per T<sub>s</sub>, così le repliche hanno la stessa altezza dell'originale e il filtro ideale di ricostruzione ha guadagno unitario. La replica k = 0 è in ciano, le altre in viola; dove due repliche si sovrappongono la zona è evidenziata in rosso.</p>
+
+        <h2>Teorema del campionamento</h2>
+
+        <p>Se il segnale è a banda limitata, cioè X(f) = 0 per |f| &gt; B, le repliche non si sovrappongono purché f<sub>s</sub> &gt; 2B. In questo caso un filtro passa-basso ideale con taglio fra B e f<sub>s</sub> − B isola la replica centrale e restituisce esattamente il segnale di partenza. Nel tempo, il filtro corrisponde all'interpolazione con funzioni sinc:</p>
+
+        <div class="formula">x(t) = Σ<sub>n</sub> x[n] · sinc((t − nT<sub>s</sub>)/T<sub>s</sub>)</div>
+
+        <p>Con f<sub>s</sub> &lt; 2B le repliche si sovrappongono: le componenti oltre f<sub>s</sub>/2 si ripiegano nella banda di base e diventano indistinguibili da componenti a frequenza più bassa. È l'<strong>aliasing</strong>, e nessun filtro applicato dopo il campionamento può rimuoverlo. Per questo nei sistemi reali un filtro anti-aliasing analogico precede sempre il convertitore.</p>
+
+        <div class="callout callout-tip">
+          <strong>Da provare</strong>
+          Con lo spettro triangolare, porta f<sub>s</sub> da 4 kHz a 1,5 kHz: le repliche si avvicinano, iniziano a sovrapporsi sotto i 2 kHz e la ricostruzione si deforma. Con lo spettro rettangolare, il caso f<sub>s</sub> = 2B esatto funziona solo se il filtro taglia esattamente a B.
+        </div>
+
+        <h2>Segnali non a banda limitata</h2>
+
+        <p>Un'onda quadra, triangolare o a dente di sega ha discontinuità, nel valore o nella derivata, e quindi infinite armoniche. Qualunque sia f<sub>s</sub>, una parte delle armoniche supera f<sub>s</sub>/2 e si ripiega: l'aliasing si può ridurre aumentando f<sub>s</sub>, ma non eliminare. Le armoniche ripiegate cadono spesso fra le armoniche vere, e sono ben visibili come righe fuori posto nello spettro campionato.</p>
+
+        <h2>Campionamento passa-banda</h2>
+
+        <p>Per un segnale che occupa solo la banda [f<sub>L</sub>, f<sub>H</sub>] conta la larghezza di banda, non la frequenza massima. Le repliche non si sovrappongono se, per qualche intero n ≥ 1:</p>
+
+        <div class="formula">2·f<sub>H</sub> / n ≤ f<sub>s</sub> ≤ 2·f<sub>L</sub> / (n − 1)</div>
+
+        <p>Con la banda 2–3 kHz dell'esempio, f<sub>s</sub> fra 3 e 4 kHz è sufficiente, pur essendo ben sotto i 6 kHz richiesti dal criterio di Nyquist applicato alla frequenza massima. La ricostruzione richiede in questo caso un filtro passa-banda sulla banda originale.</p>
+
+        <h2>Mantenimento di ordine zero</h2>
+
+        <p>Un convertitore digitale-analogico reale non genera impulsi, ma mantiene ogni campione costante per un intero periodo T<sub>s</sub> (<em>zero-order hold</em>). Equivale a filtrare gli impulsi con una risposta rettangolare di durata T<sub>s</sub>, la cui trasformata è:</p>
+
+        <div class="formula">H<sub>0</sub>(f) = T<sub>s</sub> · sinc(f/f<sub>s</sub>) · e<sup>−jπf/f<sub>s</sub></sup></div>
+
+        <p>Il modulo attenua lo spettro verso f<sub>s</sub>/2 (circa −3,9 dB proprio a f<sub>s</sub>/2) e la fase introduce un ritardo di T<sub>s</sub>/2, entrambi visibili nella ricostruzione. Nei sistemi reali si compensa con un filtro digitale di equalizzazione prima del DAC o aumentando f<sub>s</sub>.</p>
+
+        <h2>DFT e teoria</h2>
+
+        <p>Attivando il confronto, lo strumento calcola la DFT dei soli campioni che cadono nella finestra visualizzata e ricostruisce il segnale con l'IFFT, dopo aver applicato lo stesso filtro ideale ai bin. Le differenze rispetto al calcolo in forma chiusa dipendono dalla finestra finita: la DFT vede un segnale troncato e implicitamente periodico, con leakage spettrale e una ricostruzione che si richiude su sé stessa ai bordi della finestra.</p>
+
+        <div class="callout callout-info">
+          <strong>Unità di misura</strong>
+          Frequenze in kHz, tempi in ms. I segnali a banda limitata hanno banda B = 1 kHz (il passa-banda occupa 2–3 kHz) e valore massimo unitario. I parametri correnti sono salvati nell'indirizzo della pagina, che si può condividere.
+        </div>
+
+      </div>
+    </article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap wrap-wide">
+      <span>© 2025–2026 Gabbro</span>
+      <nav aria-label="Piè di pagina">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="https://github.com/sergabbro" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/nav.js" defer></script>
+  <script src="../assets/js/sampling.js" defer></script>
+</body>
+</html>

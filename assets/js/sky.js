@@ -52,6 +52,8 @@
     ['.navbar', 0], ['.readout', 0], ['.card', 0], ['.about', 0],
     ['.toc', 0], ['.site-footer', 0],
     ['.hero-copy', 0.3], ['.section-head', 0.35],
+    /* laboratorio di campionamento */
+    ['.lab-side', 0], ['.lab-stats', 0], ['.plot', 0], ['.lab-quick', 0], ['.lab-head', 0.3],
   ];
   const narrow = matchMedia('(max-width: 640px)');
   const OCCLUDERS = OCCLUDE.map(o => o[0]).concat('.article-shell').join(', ');
