@@ -17,6 +17,7 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `math-canvas.css` — stile dello strumento Math Canvas
 - `assets/js/`
   - `sky.js` — sfondo a costellazioni (tutte le pagine)
+  - `nav.js` — menu a schermo intero su mobile (tutte le pagine)
   - `cards.js` — riflesso delle card in home
   - `article.js` — indice, ancore, barra di lettura, copia del codice
   - `math-canvas.js` — logica del Math Canvas
@@ -36,7 +37,22 @@ e in fondo al `<body>`:
 
 ```html
 <script src="../assets/js/sky.js" defer></script>
+<script src="../assets/js/nav.js" defer></script>
 <script src="../assets/js/article.js" defer></script>
+```
+
+### Flag IA
+
+Le pagine il cui testo è stato scritto dall'IA (sui miei contenuti) mostrano questo badge:
+
+```html
+<p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
+```
+
+Quando riscrivo il testo di una pagina elimino quella riga (e il commento sopra). Per vedere quali pagine sono ancora da riscrivere:
+
+```bash
+grep -l 'class="ai-flag"' *.html articles/*.html
 ```
 
 Sito statico, nessuna dipendenza di build.

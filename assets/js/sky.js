@@ -5,8 +5,8 @@
    - Le stelle vicine al cursore si accendono, vengono
      attratte leggermente verso di lui e si collegano in
      costellazioni che sfumano lentamente.
-   - Click o tap: onda d'urto che accende le stelle che
-     attraversa.
+   - Click o tap sul cielo: onda d'urto che accende le stelle
+     che attraversa.
    - Quando il cursore è fermo o assente, un punto invisibile
      vaga da solo e continua a formare costellazioni.
    - Il disegno si dissolve attorno ai blocchi di contenuto
@@ -46,7 +46,15 @@
   root.style.setProperty('--glow-y', `${Math.round(-20 + rng() * 25)}%`);
 
   /* ── parametri ── */
-  const OCCLUDERS = '.navbar, .hero-copy, .readout, .section-head, .card, .about, .article-shell, .toc, .site-footer';
+  /* blocchi di contenuto: [selettore, luminosità residua delle stelle sotto il blocco].
+     0 = cielo cancellato (pannelli), > 0 = cielo solo attenuato (testo libero) */
+  const OCCLUDE = [
+    ['.navbar', 0], ['.readout', 0], ['.card', 0], ['.about', 0],
+    ['.toc', 0], ['.site-footer', 0],
+    ['.hero-copy', 0.3], ['.section-head', 0.35],
+  ];
+  const narrow = matchMedia('(max-width: 640px)');
+  const OCCLUDERS = OCCLUDE.map(o => o[0]).concat('.article-shell').join(', ');
   const FEATHER   = 32;                        // px di sfumatura attorno ai blocchi
   const LINK      = 160;                       // lunghezza massima di un lato di costellazione
   const AMBIENT   = 90;                        // collegamenti d'ambiente
@@ -135,11 +143,15 @@
   /* ── maschera: 0 dentro un blocco di contenuto, 1 lontano ── */
   function readOccluders() {
     occluders = [];
-    document.querySelectorAll(OCCLUDERS).forEach(el => {
-      const r = el.getBoundingClientRect();
-      if (r.bottom < -FEATHER || r.top > H + FEATHER || r.width === 0) return;
-      occluders.push(r);
-    });
+    /* su telefono l'articolo occupa tutta la larghezza: il cielo resta appena visibile */
+    const list = OCCLUDE.concat([['.article-shell', narrow.matches ? 0.22 : 0]]);
+    for (const [sel, floor] of list) {
+      document.querySelectorAll(sel).forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < -FEATHER || r.top > H + FEATHER || r.width === 0) return;
+        occluders.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, floor });
+      });
+    }
   }
 
   function mask(x, y) {
@@ -148,10 +160,10 @@
       const dx = Math.max(r.left - x, 0, x - r.right);
       const dy = Math.max(r.top - y, 0, y - r.bottom);
       if (dx > FEATHER || dy > FEATHER) continue;
-      const d = Math.hypot(dx, dy);
-      if (d === 0) return 0;
-      const t = Math.min(1, d / FEATHER);
-      m = Math.min(m, t * t * (3 - 2 * t));
+      const t = Math.min(1, Math.hypot(dx, dy) / FEATHER);
+      const v = r.floor + (1 - r.floor) * t * t * (3 - 2 * t);
+      if (v === 0) return 0;
+      m = Math.min(m, v);
     }
     return m;
   }
@@ -216,7 +228,7 @@
       s.m = mask(s.dx, s.dy);
 
       const d = Math.hypot(s.dx - px, s.dy - py);
-      if (d < rad && s.aff > 0.28 && s.m > 0.05) {
+      if (d < rad && s.aff > 0.28 && s.m > 0.02) {
         s.e = Math.min(1, s.e + (1 - d / rad) * dt * gain);
       }
       for (const rp of ripples) {
@@ -416,10 +428,11 @@
 
   document.addEventListener('pointerleave', () => { pointer.t = -1e9; });
 
-  addEventListener('pointerdown', e => {
+  /* click, non pointerdown: su touch non deve partire mentre si scorre */
+  addEventListener('click', e => {
     if (reduceMotion) return;
-    if (e.target.closest && e.target.closest('a, button, input, select, textarea, label')) return;
-    if (mask(e.clientX, e.clientY) < 0.2) return;           // solo sullo sfondo libero
+    if (e.target.closest && e.target.closest('a, button, input, select, textarea, label, .article-shell, .card, .about')) return;
+    if (mask(e.clientX, e.clientY) < 0.2) return;           // solo dove il cielo è visibile
     ripples.push({ x: e.clientX, y: e.clientY, r: 0, prev: 0, max: Math.max(W, H) * 0.45 });
     if (ripples.length > 4) ripples.shift();
   }, { passive: true });

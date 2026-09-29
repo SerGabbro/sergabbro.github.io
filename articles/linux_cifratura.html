@@ -27,7 +27,8 @@
         <span class="brand-name">Gabbro</span>
         <span class="brand-role">ing. elettronico</span>
       </a>
-      <nav class="nav-links" aria-label="Principale">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
         <a href="../index.html#articoli" aria-current="page">Articoli</a>
         <a href="../index.html#strumenti">Strumenti</a>
         <a href="../index.html#chi-sono">Chi sono</a>
@@ -59,6 +60,8 @@
           <span class="tag tag-gray">grub</span>
           <span class="tag tag-gray">tpm</span>
         </div>
+        <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
+        <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
       </header>
 
       <div class="article-body rise rise-2">
@@ -67,18 +70,18 @@
 
         <p>Il caso di riferimento è il più comune: un portatile perso, rubato o lasciato incustodito. Chi lo trova ha <strong>accesso fisico</strong> alla macchina, ma non conosce alcuna password. La domanda è che cosa può leggere o modificare.</p>
 
-        <p>Conviene separare due stati. Con la macchina <strong>spenta</strong>, il disco contiene i dati <em>a riposo</em> e la loro protezione dipende solo da come sono memorizzati. Con la macchina <strong>accesa o sospesa</strong>, i dati sono accessibili al sistema operativo e la protezione dipende dal sistema in esecuzione. La cifratura del disco agisce sul primo stato; sul secondo, come si vedrà, molto meno.</p>
+        <p>Conviene distinguere due situazioni. Con la macchina <strong>spenta</strong>, il disco contiene i dati <em>a riposo</em> e la loro protezione dipende solo da come sono memorizzati. Con la macchina <strong>accesa o sospesa</strong>, i dati sono accessibili al sistema operativo e la protezione dipende dal sistema in esecuzione. La cifratura del disco protegge il primo caso; il secondo, come si vedrà, molto meno.</p>
 
         <div class="callout callout-risk">
           <strong>Perimetro dell'articolo</strong>
-          Le procedure citate sono le stesse che le distribuzioni documentano per il recupero di una password dimenticata. Servono qui a motivare le contromisure, e vanno provate solo su macchine proprie.
+          Le procedure citate sono le stesse che le distribuzioni documentano per il recupero di una password dimenticata. Qui servono a motivare le contromisure e vanno provate solo su macchine proprie.
         </div>
 
         <h2>Perché la password di login non basta</h2>
 
-        <p>I permessi di Linux, dalla password utente ai diritti sui file, sono applicati dal <strong>kernel in esecuzione</strong>. Chi controlla la fase di avvio controlla quale kernel parte e con quali parametri, e quindi può aggirare quei permessi senza violarli: semplicemente, non li carica.</p>
+        <p>I permessi di Linux, dalla password utente ai diritti sui file, sono applicati dal <strong>kernel in esecuzione</strong>. Chi controlla la fase di avvio controlla quale kernel parte e con quali parametri, e può quindi aggirare quei permessi senza forzarli: basta avviare il sistema in modo che non vengano applicati.</p>
 
-        <p>Il caso più noto è il bootloader. GRUB permette di modificare la riga di comando del kernel prima dell'avvio, premendo <code>e</code> sulla voce del menu. È una funzione voluta, pensata per la manutenzione: aggiungendo un parametro come <code>rd.break</code> o <code>init=/bin/bash</code> il sistema si ferma in una shell di root prima del login, ed è così che si reimposta una password di root dimenticata. La stessa funzione, a disco non cifrato, è a disposizione di chiunque abbia la tastiera davanti.</p>
+        <p>Il caso più noto è il bootloader. GRUB permette di modificare la riga di comando del kernel prima dell'avvio, premendo il tasto <code>e</code> sulla voce del menu. È una funzione voluta, pensata per la manutenzione: aggiungendo un parametro come <code>rd.break</code> o <code>init=/bin/bash</code> il sistema si ferma in una shell di root prima del login, ed è così che si reimposta una password di root dimenticata. Se il disco non è cifrato, la stessa funzione è a disposizione di chiunque si trovi davanti alla tastiera.</p>
 
         <p>Il bootloader però è solo una delle vie. Con accesso fisico si può anche avviare un sistema live da USB, oppure estrarre l'SSD e collegarlo a un'altra macchina. In tutti e tre i casi il risultato è lo stesso: il filesystem viene montato da un kernel che non applica le regole del sistema originale.</p>
 
@@ -96,7 +99,7 @@
         </div>
         <p class="table-note">* finché il firmware non viene resettato, operazione che su molti desktop richiede solo di rimuovere la batteria tampone.</p>
 
-        <p>La tabella riassume il punto: le password su bootloader e firmware sono controlli di accesso, e proteggono solo finché il dato resta nella macchina che li applica. La cifratura rende il dato illeggibile ovunque venga montato.</p>
+        <p>La tabella riassume il punto: le password su bootloader e firmware sono controlli di accesso e proteggono solo finché il dato resta nella macchina che li applica. La cifratura rende il dato illeggibile ovunque venga montato.</p>
 
         <h2>LUKS2: che cosa protegge</h2>
 
@@ -107,7 +110,7 @@
           I dati sono cifrati con una <em class="term">chiave master</em> casuale, generata alla creazione del volume e mai derivata dalla passphrase. La passphrase serve solo a decifrare una copia della chiave master conservata in un <em class="term">keyslot</em> dell'header. Si possono avere più keyslot (passphrase diverse, un file di chiave, il TPM) che sbloccano la stessa chiave master; cambiare passphrase significa riscrivere un keyslot, non ricifrare il disco.
         </div>
 
-        <p>La passphrase non viene usata direttamente: passa da una <strong>funzione di derivazione della chiave</strong> (KDF) volutamente costosa. LUKS2 usa di default <strong>Argon2id</strong>, che richiede sia tempo di calcolo sia memoria, e rende poco efficiente la ricerca esaustiva su GPU. Il formato LUKS1, ancora presente su installazioni datate, usa PBKDF2, che non ha costo in memoria.</p>
+        <p>La passphrase non viene usata direttamente: passa da una <strong>funzione di derivazione della chiave</strong> (KDF) volutamente costosa. LUKS2 usa di default <strong>Argon2id</strong>, che richiede sia tempo di calcolo sia memoria, e rende poco efficiente la ricerca esaustiva su GPU. Il formato LUKS1, ancora presente su installazioni datate, usa PBKDF2, che non impone alcun costo in memoria.</p>
 
         <pre data-label="bash"><code>sudo cryptsetup luksDump /dev/nvme0n1p3
 # Version:        2
@@ -129,9 +132,9 @@
 
         <h3>/boot non cifrato e attacco evil maid</h3>
 
-        <p>Nella configurazione predefinita di Fedora e Ubuntu, la partizione <code>/boot</code>, che contiene kernel e <strong>initramfs</strong>, non è cifrata. La passphrase non la chiede GRUB, ma l'initramfs, cioè codice letto da una partizione in chiaro.</p>
+        <p>Nella configurazione predefinita di Fedora e Ubuntu, la partizione <code>/boot</code>, che contiene kernel e <strong>initramfs</strong>, non è cifrata. A chiedere la passphrase non è GRUB ma l'initramfs, cioè codice caricato da una partizione in chiaro.</p>
 
-        <p>Ne deriva l'attacco detto <strong>evil maid</strong>: chi può accedere alla macchina due volte modifica l'initramfs alla prima occasione, in modo che registri la passphrase al successivo avvio, e torna a raccoglierla. Il disco cifrato resta intatto; è il codice che chiede la chiave a essere compromesso.</p>
+        <p>Ne deriva l'attacco detto <strong>evil maid</strong>: chi può accedere alla macchina in due momenti diversi modifica l'initramfs perché registri la passphrase all'avvio successivo, poi torna a recuperarla. Il disco cifrato resta intatto; è il codice che chiede la chiave a essere compromesso.</p>
 
         <p>Secure Boot da solo non basta, perché nelle configurazioni tradizionali verifica la firma di bootloader e kernel ma non quella dell'initramfs, generato localmente. La contromisura completa è una catena di avvio interamente firmata, per esempio con <strong>Unified Kernel Image</strong> (kernel, initramfs e riga di comando in un unico eseguibile firmato), eventualmente legata al TPM tramite misurazioni (vedi <em>Sblocco tramite TPM</em>).</p>
 
@@ -141,16 +144,16 @@
 
         <h3>Sblocco tramite TPM</h3>
 
-        <p>Il <strong>TPM</strong> può custodire una chiave LUKS e rilasciarla all'avvio solo se le misurazioni della catena di avvio (registri PCR) corrispondono ai valori attesi. Su Linux la si registra con <code>systemd-cryptenroll</code>. Il vantaggio è che una catena di avvio alterata non ottiene la chiave, il che chiude l'attacco evil maid descritto sopra.</p>
+        <p>Il <strong>TPM</strong> può custodire una chiave LUKS e rilasciarla all'avvio solo se le misurazioni della catena di avvio (registri PCR) corrispondono ai valori attesi. Su Linux la si registra con <code>systemd-cryptenroll</code>. Se la catena di avvio è stata alterata, la chiave non viene rilasciata: l'attacco evil maid descritto sopra non funziona più.</p>
 
         <p>Lo sblocco basato <strong>solo</strong> sul TPM ha però due debolezze:</p>
 
         <ul>
           <li>il sistema arriva da solo alla schermata di login con il disco già aperto, quindi la protezione dei dati torna a dipendere dal sistema in esecuzione;</li>
-          <li>sui TPM discreti la chiave transita su un bus esterno (LPC o SPI), dove in passato è stata intercettata con strumenti economici. Le versioni recenti di systemd cifrano la sessione con il TPM, il che neutralizza la semplice intercettazione passiva, ma il rischio residuo dipende dall'hardware.</li>
+          <li>sui TPM discreti la chiave transita su un bus esterno (LPC o SPI), dove in passato è stata intercettata con strumenti economici. Le versioni recenti di systemd cifrano la comunicazione con il TPM, neutralizzando l'intercettazione passiva; il rischio residuo dipende comunque dall'hardware.</li>
         </ul>
 
-        <p>La configurazione equilibrata è <strong>TPM più PIN</strong>: il TPM verifica l'integrità della catena di avvio, il PIN aggiunge un fattore che l'attaccante non possiede. Il TPM applica inoltre un limite ai tentativi, per cui anche un PIN breve resiste alla ricerca esaustiva.</p>
+        <p>La configurazione equilibrata è <strong>TPM più PIN</strong>: il TPM verifica l'integrità della catena di avvio; il PIN aggiunge un fattore che l'attaccante non possiede. Il TPM applica inoltre un limite ai tentativi, per cui anche un PIN breve resiste alla ricerca esaustiva.</p>
 
         <pre data-label="bash"><code>sudo systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes /dev/nvme0n1p3</code></pre>
 
@@ -161,7 +164,7 @@
 
         <h3>Sistema acceso o sospeso</h3>
 
-        <p>Con il volume aperto, la chiave master risiede in RAM. Il contenuto della DRAM non si annulla istantaneamente allo spegnimento, e a bassa temperatura persiste per secondi: il lavoro di Halderman et al. del 2008 (<em>Lest We Remember</em>) ha mostrato il recupero di chiavi di cifratura da moduli raffreddati e spostati su un'altra macchina. Su hardware moderno con RAM saldata e scrambling della memoria il vettore è molto più difficile, ma la conclusione resta valida: <strong>un portatile sospeso ha il disco aperto</strong>. Quando il rischio è concreto, per esempio in viaggio, la macchina va spenta, non sospesa.</p>
+        <p>Con il volume aperto, la chiave master risiede in RAM. Il contenuto della DRAM non si cancella istantaneamente allo spegnimento e, a bassa temperatura, persiste per diversi secondi: il lavoro di Halderman et al. del 2008 (<em>Lest We Remember</em>) ha mostrato il recupero di chiavi di cifratura da moduli raffreddati e spostati su un'altra macchina. Su hardware moderno con RAM saldata e scrambling della memoria l'attacco è molto più difficile, ma la conclusione resta valida: <strong>un portatile sospeso ha il disco aperto</strong>. Quando il rischio è concreto, per esempio in viaggio, la macchina va spenta, non sospesa.</p>
 
         <h2>Configurazione consigliata</h2>
 
@@ -189,7 +192,7 @@
 
         <div class="callout callout-ok">
           <strong>In sintesi</strong>
-          Su un portatile, cifrare il disco è il requisito minimo. Il resto dipende da chi potrebbe avere accesso alla macchina, e per quanto tempo.
+          Su un portatile, cifrare il disco è il requisito minimo. Il resto dipende da chi potrebbe accedere alla macchina e per quanto tempo.
         </div>
 
         <h2>Riferimenti</h2>
@@ -228,6 +231,7 @@
   </footer>
 
   <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/nav.js" defer></script>
   <script src="../assets/js/article.js" defer></script>
 </body>
 </html>

@@ -43,6 +43,7 @@
 .hero-lead strong { color: var(--text); font-weight: 600; }
 
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero-copy .ai-flag { margin-top: 26px; }
 
 /* pannello "strumento di misura" con i dati live dello sfondo */
 .readout {
@@ -260,16 +261,42 @@
 /* =========================================================
    RESPONSIVE
    ========================================================= */
+@media (hover: none) {
+  .card:active { transform: scale(0.985); background: var(--surface-hi); }
+}
+
 @media (max-width: 860px) {
-  .hero { padding: 72px 0 56px; }
-  .hero .wrap { grid-template-columns: 1fr; }
-  .readout { display: none; }
+  .hero .wrap { grid-template-columns: 1fr; gap: 32px; }
+  .readout { max-width: 440px; }
+  .readout dl { grid-template-columns: auto 1fr auto 1fr; gap: 6px 14px; }
   .about { grid-template-columns: 1fr; gap: 28px; }
 }
 
 @media (max-width: 640px) {
+  /* hero a schermo intero: lascia spazio al cielo */
+  .hero {
+    min-height: calc(100svh - var(--nav-h));
+    display: flex;
+    align-items: flex-end;
+    padding: 40px 0 36px;
+  }
+  .hero h1 { font-size: clamp(40px, 12.5vw, 56px); margin: 18px 0 18px; }
+  .hero-lead { font-size: 16px; margin-bottom: 26px; }
+  .hero-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hero-actions .btn { justify-content: center; padding: 0 12px; height: 46px; }
+  .hero .ai-flag { margin-top: 20px; }
+  .readout { max-width: none; }
+
+  .section { padding: 24px 0 40px; }
+  .section-head { flex-wrap: wrap; row-gap: 4px; }
+  .section-title { font-size: 20px; }
+
   .card { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 22px 20px; }
   .card-idx, .card-arrow { display: none; }
   .card-title { font-size: 18px; }
+  .card-excerpt { font-size: 14px; margin-bottom: 14px; }
   .about { padding: 22px 20px; }
+  .spec { grid-template-columns: 1fr; }
+  .spec dt { padding: 12px 0 0; border-bottom: 0; }
+  .spec dd { padding: 2px 0 12px; }
 }

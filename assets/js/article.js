@@ -53,6 +53,27 @@
     setCurrent();
   }
 
+  /* indice come pannello su schermi stretti: pulsante flottante */
+  const toc = document.querySelector('.toc');
+  let pct = null;
+  if (toc && heads.length) {
+    const fab = document.createElement('button');
+    fab.type = 'button';
+    fab.className = 'toc-fab';
+    fab.setAttribute('aria-expanded', 'false');
+    fab.innerHTML = '<span class="ring" aria-hidden="true"></span><span>Indice</span><span class="pct">0%</span>';
+    pct = fab.querySelector('.pct');
+    document.body.appendChild(fab);
+    const setOpen = open => {
+      toc.classList.toggle('is-open', open);
+      fab.setAttribute('aria-expanded', String(open));
+    };
+    fab.addEventListener('click', e => { e.stopPropagation(); setOpen(!toc.classList.contains('is-open')); });
+    toc.addEventListener('click', e => { if (e.target.closest('a')) setOpen(false); });
+    document.addEventListener('click', e => { if (!toc.contains(e.target)) setOpen(false); });
+    addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+  }
+
   /* barra di avanzamento */
   const bar = document.querySelector('.progress');
   const shell = document.querySelector('.article-shell');
@@ -62,6 +83,8 @@
       const total = r.height - innerHeight * 0.6;
       const p = Math.max(0, Math.min(1, -r.top / Math.max(1, total)));
       bar.style.setProperty('--progress', p.toFixed(4));
+      root.style.setProperty('--read', p.toFixed(4));
+      if (pct) pct.textContent = `${Math.round(p * 100)}%`;
     };
     addEventListener('scroll', upd, { passive: true });
     addEventListener('resize', upd);

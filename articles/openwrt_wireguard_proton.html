@@ -28,7 +28,8 @@
         <span class="brand-name">Gabbro</span>
         <span class="brand-role">ing. elettronico</span>
       </a>
-      <nav class="nav-links" aria-label="Principale">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
         <a href="../index.html#articoli" aria-current="page">Articoli</a>
         <a href="../index.html#strumenti">Strumenti</a>
         <a href="../index.html#chi-sono">Chi sono</a>
@@ -52,7 +53,7 @@
           <time datetime="2025-03-12">12 marzo 2025</time><span class="sep"></span><span>12 min di lettura</span>
         </div>
         <h1>Una rete Wi-Fi instradata in WireGuard verso ProtonVPN su OpenWrt</h1>
-        <p class="lead">Una SSID dedicata, su una subnet isolata dal resto della LAN, il cui traffico esce esclusivamente attraverso un tunnel WireGuard verso ProtonVPN. Policy-based routing, zone firewall separate e blocco del traffico se il tunnel cade.</p>
+        <p class="lead">Una rete Wi-Fi dedicata, su una subnet isolata dal resto della LAN, il cui traffico esce esclusivamente attraverso un tunnel WireGuard verso ProtonVPN. Policy-based routing, zone firewall separate e blocco del traffico se il tunnel cade.</p>
         <div class="tags">
           <span class="tag tag-green">networking</span>
           <span class="tag tag-cyan">linux</span>
@@ -60,6 +61,8 @@
           <span class="tag tag-gray">wireguard</span>
           <span class="tag tag-gray">pbr</span>
         </div>
+        <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
+        <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
       </header>
 
       <div class="article-body rise rise-2">
@@ -69,12 +72,12 @@
         <p>Sul router OpenWrt di casa voglio una rete Wi-Fi separata, con subnet <code>192.168.11.0/24</code>, che soddisfi tre requisiti:</p>
 
         <ul>
-          <li>tutto il traffico dei client esce dal tunnel WireGuard verso ProtonVPN, senza configurazione sui dispositivi;</li>
+          <li>tutto il traffico dei client esce attraverso il tunnel WireGuard verso ProtonVPN, senza configurazione sui dispositivi;</li>
           <li>se il tunnel non è attivo, il traffico viene bloccato e non esce in chiaro dalla WAN;</li>
-          <li>i dispositivi collegati non vedono la LAN principale, né comunicano fra loro.</li>
+          <li>i dispositivi collegati non vedono la LAN principale e non comunicano fra loro.</li>
         </ul>
 
-        <p>È utile per dispositivi su cui non si può o non si vuole installare un client VPN: smart TV, console, dispositivi IoT, ospiti. Il resto della rete di casa continua a uscire normalmente dalla WAN.</p>
+        <p>La configurazione è utile per i dispositivi su cui non si può, o non si vuole, installare un client VPN: smart TV, console, dispositivi IoT, ospiti. Il resto della rete di casa continua a uscire normalmente verso la WAN.</p>
 
         <div class="flow" role="img" aria-label="Schema: client della SSID dedicata, router OpenWrt con policy routing, tunnel WireGuard verso ProtonVPN">
           <div class="box"><b>SSID HomeVPN</b>192.168.11.0/24</div>
@@ -83,11 +86,11 @@
           <span class="arrow">──►</span>
           <div class="box vpn"><b>wg0</b>ProtonVPN</div>
         </div>
-        <p class="flow-note">La LAN principale resta sulla tabella di routing principale, verso la WAN.</p>
+        <p class="flow-note">La LAN principale continua a usare la tabella di routing principale e a uscire dalla WAN.</p>
 
         <div class="callout callout-info">
           <strong>Ambiente di prova</strong>
-          OpenWrt 23.05, con il firewall <code>fw4</code> basato su nftables; la procedura vale anche per la serie 24.10. Dalla serie 25 il gestore di pacchetti è <code>apk</code> al posto di <code>opkg</code>, ma i nomi dei pacchetti non cambiano. Serve un account ProtonVPN con accesso alle configurazioni WireGuard. Per ogni passo riporto sia l'interfaccia LuCI sia la configurazione UCI equivalente.
+          OpenWrt 23.05, con il firewall <code>fw4</code> basato su nftables; la procedura vale anche per la serie 24.10. A partire dalla serie 25 il gestore di pacchetti è <code>apk</code> anziché <code>opkg</code>, ma i nomi dei pacchetti non cambiano. Serve un account ProtonVPN con accesso alle configurazioni WireGuard. Per ogni passo riporto sia l'interfaccia LuCI sia la configurazione UCI equivalente.
         </div>
 
         <h2>1. Configurazione WireGuard da Proton</h2>
@@ -101,7 +104,7 @@
           </li>
           <li>
             <strong>Piattaforma e opzioni</strong>
-            Piattaforma <em>Router</em>. <strong>NetShield</strong> filtra a livello DNS domini di malware e tracker; <strong>Moderate NAT</strong> serve solo per applicazioni peer-to-peer o gaming; <strong>VPN Accelerator</strong> può restare attivo.
+            Piattaforma <em>Router</em>. <strong>NetShield</strong> blocca a livello DNS i domini di malware e tracker; <strong>Moderate NAT</strong> serve solo per applicazioni peer-to-peer o gaming; <strong>VPN Accelerator</strong> può restare attivo.
           </li>
           <li>
             <strong>Server</strong>
@@ -128,12 +131,12 @@ Endpoint = 185.159.157.x:51820</code></pre>
 
         <div class="callout callout-def">
           <strong>I quattro parametri</strong>
-          <em class="term">PrivateKey</em> e <em class="term">PublicKey</em> sono chiavi Curve25519. Durante l'handshake (protocollo Noise) ciascun lato dimostra di possedere la propria chiave privata, e le due parti derivano chiavi di sessione temporanee con cui cifrano il traffico. <em class="term">Address</em> è l'indirizzo del router all'interno del tunnel, estraneo alla LAN. <em class="term">Endpoint</em> è l'indirizzo pubblico e la porta UDP del server Proton.
+          <em class="term">PrivateKey</em> e <em class="term">PublicKey</em> sono chiavi Curve25519. Durante l'handshake (protocollo Noise) ciascuna parte dimostra di possedere la propria chiave privata, e insieme le due parti derivano chiavi di sessione temporanee, usate per cifrare il traffico. <em class="term">Address</em> è l'indirizzo del router all'interno del tunnel, estraneo alla LAN. <em class="term">Endpoint</em> indica indirizzo pubblico e porta UDP del server Proton.
         </div>
 
         <div class="callout callout-warn">
           <strong>La chiave privata è una credenziale</strong>
-          Chi la ottiene può presentarsi a Proton come il router e usare l'abbonamento. Non può invece decifrare traffico già registrato: le chiavi di sessione sono effimere, e il protocollo garantisce la <em>forward secrecy</em>. In caso di esposizione, la chiave va revocata dal pannello di Proton.
+          Chi la ottiene può presentarsi a Proton come il router e usare l'abbonamento. Non può invece decifrare traffico già registrato: le chiavi di sessione sono effimere e il protocollo garantisce la <em>forward secrecy</em>. In caso di esposizione, la chiave va revocata dal pannello di Proton.
         </div>
 
         <h2>2. Pacchetti WireGuard</h2>
@@ -145,9 +148,9 @@ opkg install kmod-wireguard wireguard-tools luci-proto-wireguard
 /etc/init.d/rpcd restart</code></pre>
 
         <ul>
-          <li><code>kmod-wireguard</code>: il modulo del kernel che implementa il tunnel;</li>
-          <li><code>wireguard-tools</code>: il comando <code>wg</code>, per ispezionare stato e peer;</li>
-          <li><code>luci-proto-wireguard</code>: il protocollo WireGuard nelle interfacce di LuCI e la pagina di stato <em>Status → WireGuard</em>.</li>
+          <li><code>kmod-wireguard</code>: modulo del kernel che implementa il tunnel;</li>
+          <li><code>wireguard-tools</code>: comando <code>wg</code>, per ispezionare lo stato del tunnel e dei peer;</li>
+          <li><code>luci-proto-wireguard</code>: supporto a WireGuard nelle interfacce di LuCI e pagina di stato <em>Status → WireGuard</em>.</li>
         </ul>
 
         <p>Il riavvio di <code>rpcd</code> rende visibili in LuCI le nuove voci senza riavviare il router.</p>
@@ -167,19 +170,19 @@ opkg install kmod-wireguard wireguard-tools luci-proto-wireguard
         <ul>
           <li><strong>Public Key</strong>: la <code>PublicKey</code> del server;</li>
           <li><strong>Allowed IPs</strong>: <code>0.0.0.0/0</code>;</li>
-          <li><strong>Route Allowed IPs</strong>: <strong>disattivato</strong>. Se attivo, OpenWrt installa una route predefinita verso il tunnel nella tabella principale, e tutto il traffico del router, LAN compresa, finisce nella VPN. L'instradamento verrà invece gestito da <code>pbr</code> (passo 5);</li>
+          <li><strong>Route Allowed IPs</strong>: <strong>disattivato</strong>. Se attivata, OpenWrt installa una route predefinita verso il tunnel nella tabella principale e tutto il traffico del router, LAN compresa, finisce nella VPN. L'instradamento sarà invece gestito da <code>pbr</code> (passo 5);</li>
           <li><strong>Endpoint Host / Port</strong>: indirizzo e porta dell'<code>Endpoint</code>;</li>
           <li><strong>Persistent Keep Alive</strong>: <code>25</code>.</li>
         </ul>
 
         <div class="callout callout-def">
           <strong>AllowedIPs: filtro e tabella di routing</strong>
-          <em class="term">AllowedIPs</em> ha due ruoli. In ricezione è un filtro: WireGuard accetta dal peer solo pacchetti il cui indirizzo sorgente rientra nell'elenco, e scarta gli altri. In trasmissione è una tabella di instradamento interna al tunnel: indica quali destinazioni vanno inviate a quel peer. Con <code>0.0.0.0/0</code> il server Proton può consegnare traffico da qualunque indirizzo di Internet, come è necessario. L'opzione di OpenWrt <code>route_allowed_ips</code> è una cosa distinta: copia lo stesso elenco nella tabella di routing del sistema, ed è questa che va disattivata.
+          <em class="term">AllowedIPs</em> ha due ruoli. In ricezione è un filtro: WireGuard accetta dal peer solo pacchetti il cui indirizzo sorgente rientra nell'elenco e scarta gli altri. In trasmissione è una tabella di instradamento interna al tunnel: indica quali destinazioni vanno inviate a quel peer. Con <code>0.0.0.0/0</code> il server Proton può consegnare traffico proveniente da qualunque indirizzo di Internet, che è proprio ciò che serve. L'opzione di OpenWrt <code>route_allowed_ips</code> è un'altra cosa: copia lo stesso elenco nella tabella di routing del sistema, ed è questa che va disattivata.
         </div>
 
         <div class="callout callout-def">
           <strong>Perché il keepalive a 25 secondi</strong>
-          WireGuard non trasmette nulla in assenza di traffico. I NAT lungo il percorso (quello del router e, se presente, il CG-NAT dell'operatore) mantengono la mappatura di un flusso UDP solo per un tempo limitato; se scade, il primo pacchetto successivo va perso finché l'handshake non viene ripetuto. Un <em class="term">keepalive</em> ogni 25 secondi mantiene attiva la mappatura, al costo di pochi kilobyte l'ora.
+          WireGuard non trasmette nulla in assenza di traffico. I NAT lungo il percorso (quello del router e, se presente, il CG-NAT dell'operatore) mantengono la mappatura di un flusso UDP solo per un tempo limitato; quando scade, i pacchetti in arrivo dal server vengono scartati finché il router non trasmette di nuovo. Un <em class="term">keepalive</em> ogni 25 secondi mantiene attiva la mappatura, al costo di pochi kilobyte l'ora.
         </div>
 
         <p>Configurazione equivalente in <code>/etc/config/network</code>:</p>
@@ -204,7 +207,7 @@ config wireguard_wg0
 # latest handshake: pochi secondi fa
 # transfer: byte ricevuti e inviati diversi da zero</code></pre>
 
-        <p>Un handshake assente indica di solito una chiave errata o un endpoint non raggiungibile.</p>
+        <p>Se l'handshake non avviene, la causa è di solito una chiave errata o un endpoint non raggiungibile.</p>
 
         <h2>4. Subnet e Wi-Fi dedicate</h2>
 
@@ -218,7 +221,7 @@ config wireguard_wg0
 
         <div class="callout callout-def">
           <strong>Opzione DHCP 6</strong>
-          Il DHCP trasporta, oltre all'indirizzo, una serie di <em>opzioni</em> numerate. L'<em class="term">opzione 6</em> è l'elenco dei server DNS. Impostandola a <code>10.2.0.1</code>, il resolver di Proton raggiungibile solo attraverso il tunnel, i client risolvono i nomi dentro la VPN e l'operatore non vede le loro query. I dispositivi con DNS impostati in modo fisso, per esempio <code>8.8.8.8</code>, ignorano l'opzione; le loro query passano comunque nel tunnel, perché tutto il traffico della subnet vi è instradato, ma non beneficiano del filtro NetShield.
+          Il DHCP trasporta, oltre all'indirizzo, una serie di <em>opzioni</em> numerate. L'<em class="term">opzione 6</em> è l'elenco dei server DNS. Impostandola a <code>10.2.0.1</code>, cioè il resolver di Proton, raggiungibile solo attraverso il tunnel, i client risolvono i nomi dentro la VPN e l'operatore non vede le loro query. I dispositivi con DNS impostati in modo fisso, per esempio <code>8.8.8.8</code>, ignorano l'opzione; le loro query passano comunque dal tunnel, perché tutto il traffico della subnet vi è instradato, ma non beneficiano del filtro NetShield.
         </div>
 
         <p>Configurazione equivalente:</p>
@@ -239,22 +242,22 @@ config wireguard_wg0
 
         <div class="callout callout-warn">
           <strong>IPv6 disattivato sulla subnet</strong>
-          Il profilo Proton usato qui trasporta solo IPv4. Se la subnet ricevesse un prefisso IPv6 dal router, i client userebbero IPv6 per i siti che lo supportano, fuori dal tunnel. Per questo l'interfaccia non ha <code>ip6assign</code> e sono disattivati router advertisement e DHCPv6.
+          Il profilo Proton usato qui trasporta solo IPv4. Se la subnet ricevesse un prefisso IPv6 dal router, i client userebbero IPv6 per i siti che lo supportano, fuori dal tunnel. Per questo l'interfaccia non ha <code>ip6assign</code> e sono disattivati i router advertisement e il DHCPv6.
         </div>
 
-        <p>Poi la Wi-Fi, da <strong>Network → Wireless → Add</strong>:</p>
+        <p>Si crea poi la rete Wi-Fi, da <strong>Network → Wireless → Add</strong>:</p>
 
         <ul>
           <li><strong>ESSID</strong>: per esempio <code>HomeVPN</code>;</li>
           <li><strong>Mode</strong>: <em>Access Point</em>;</li>
           <li><strong>Network</strong>: solo <code>vpnlan</code>. Associare anche <code>lan</code> creerebbe un bridge fra le due reti, annullando l'isolamento;</li>
-          <li><strong>Wireless Security</strong>: WPA2-PSK come minimo, WPA3-SAE (o la modalità mista) se tutti i client la supportano;</li>
+          <li><strong>Wireless Security</strong>: WPA3-SAE se tutti i client lo supportano, altrimenti la modalità mista WPA2/WPA3;</li>
           <li><strong>Isolate Clients</strong> (in <em>Advanced Settings</em>): attivo.</li>
         </ul>
 
         <div class="callout callout-def">
           <strong>Isolamento dei client</strong>
-          Due dispositivi sulla stessa SSID e sulla stessa subnet comunicano direttamente a livello 2, attraverso l'access point, senza passare dal firewall del router. Per impedirlo serve l'opzione <em class="term">isolate</em>, che fa scartare all'access point il traffico diretto fra client wireless. È ciò che impedisce, per esempio, a un dispositivo IoT compromesso di raggiungere gli altri dispositivi della stessa rete.
+          Due dispositivi collegati alla stessa rete Wi-Fi e sulla stessa subnet comunicano direttamente a livello 2, attraverso l'access point, senza passare dal firewall del router. Per impedirlo serve l'opzione <em class="term">isolate</em>, che fa scartare all'access point il traffico diretto fra client wireless. È ciò che impedisce, per esempio, a un dispositivo IoT compromesso di raggiungere gli altri dispositivi della stessa rete.
         </div>
 
         <pre data-label="/etc/config/wireless"><code>config wifi-iface 'vpn_ap'
@@ -274,7 +277,7 @@ config wireguard_wg0
 
         <div class="callout callout-def">
           <strong>Policy-based routing</strong>
-          Il routing classico usa una sola tabella, <em class="term">main</em>, e sceglie il percorso in base alla sola destinazione. Linux può però mantenere più tabelle e usare delle <em class="term">regole</em> (<code>ip rule</code>) per decidere quale consultare in base ad altri criteri: indirizzo sorgente, interfaccia di ingresso, marcatura del firewall. Qui una seconda tabella ha come route predefinita il tunnel, e una regola la applica ai pacchetti provenienti dalla subnet dedicata.
+          Il routing classico usa una sola tabella, <em class="term">main</em>, e sceglie il percorso in base alla sola destinazione. Linux può però mantenere più tabelle e usare delle <em class="term">regole</em> (<code>ip rule</code>) per decidere quale consultare in base ad altri criteri: indirizzo sorgente, interfaccia di ingresso, marcatura del firewall. In questo caso una seconda tabella ha come route predefinita il tunnel e una regola la applica ai pacchetti provenienti dalla subnet dedicata.
         </div>
 
         <p>OpenWrt dispone del pacchetto <code>pbr</code>, che gestisce tabelle e regole a partire da policy dichiarative e le mantiene coerenti con lo stato delle interfacce:</p>
@@ -308,7 +311,7 @@ ip rule show</code></pre>
 
         <h2>6. Zone firewall e isolamento</h2>
 
-        <p>Il firewall di OpenWrt ragiona per <strong>zone</strong>: ogni interfaccia appartiene a una zona, e il traffico fra zone diverse è ammesso solo se esiste un <em>forwarding</em> esplicito. Servono due zone nuove:</p>
+        <p>Il firewall di OpenWrt ragiona per <strong>zone</strong>: ogni interfaccia appartiene a una zona e il traffico fra zone diverse è ammesso solo se esiste un <em>forwarding</em> esplicito. Servono due zone nuove:</p>
 
         <ul>
           <li><code>vpnlan</code>, lato client, con la sola rete <code>vpnlan</code>;</li>
@@ -319,22 +322,22 @@ ip rule show</code></pre>
 
         <div class="callout callout-warn">
           <strong>Due zone, non una</strong>
-          Mettere <code>vpnlan</code> e <code>wg0</code> nella stessa zona sembra più semplice, ma in <code>fw4</code> il traffico fra reti diverse della stessa zona è regolato dalla policy <code>forward</code> della zona. Con <code>forward REJECT</code>, necessario per l'isolamento, il traffico dalla subnet al tunnel verrebbe bloccato; con <code>forward ACCEPT</code>, ogni rete aggiunta in futuro a quella zona comunicherebbe con le altre. Con due zone il percorso ammesso è uno solo, ed è esplicito.
+          Mettere <code>vpnlan</code> e <code>wg0</code> nella stessa zona sembra più semplice, ma in <code>fw4</code> il traffico fra reti diverse della stessa zona è regolato dalla policy <code>forward</code> della zona. Con <code>forward REJECT</code>, necessario per l'isolamento, il traffico dalla subnet al tunnel verrebbe bloccato; con <code>forward ACCEPT</code>, ogni rete aggiunta in futuro a quella zona comunicherebbe con le altre. Con due zone esiste un solo percorso ammesso, dichiarato in modo esplicito.
         </div>
 
         <div class="callout callout-def">
           <strong>Input, output, forward</strong>
-          <em class="term">input</em> riguarda i pacchetti destinati al router stesso: richieste DHCP, ping al gateway, accessi a LuCI o SSH. <em class="term">output</em> i pacchetti generati dal router. <em class="term">forward</em> i pacchetti che il router inoltra da un'interfaccia a un'altra, cioè il traffico dei client verso Internet. Con <code>input REJECT</code> sulla zona dei client, i dispositivi della rete dedicata non possono raggiungere l'interfaccia di amministrazione del router.
+          <em class="term">input</em> riguarda i pacchetti destinati al router stesso: richieste DHCP, ping al gateway, accessi a LuCI o SSH. <em class="term">output</em> riguarda quelli generati dal router; <em class="term">forward</em> quelli che il router inoltra da un'interfaccia a un'altra, cioè il traffico dei client verso Internet. Con <code>input REJECT</code> sulla zona dei client, i dispositivi della rete dedicata non possono raggiungere l'interfaccia di amministrazione del router.
         </div>
 
         <div class="callout callout-def">
           <strong>Masquerading</strong>
-          Il <em class="term">masquerading</em> è una forma di Source NAT: all'uscita dall'interfaccia, il router sostituisce l'indirizzo sorgente dei pacchetti con il proprio indirizzo su quell'interfaccia, e tiene traccia delle connessioni per inoltrare le risposte al client giusto. Sulla zona del tunnel è indispensabile: Proton conosce solo l'indirizzo <code>10.2.0.2</code>, e non saprebbe dove recapitare risposte indirizzate a <code>192.168.11.x</code>.
+          Il <em class="term">masquerading</em> è una forma di Source NAT: all'uscita dall'interfaccia, il router sostituisce l'indirizzo sorgente dei pacchetti con il proprio indirizzo su quell'interfaccia e tiene traccia delle connessioni per inoltrare le risposte al client giusto. Sulla zona del tunnel è indispensabile: Proton conosce solo l'indirizzo <code>10.2.0.2</code> e non saprebbe dove recapitare risposte indirizzate a <code>192.168.11.x</code>.
         </div>
 
         <div class="callout callout-def">
           <strong>MSS clamping</strong>
-          La <em class="term">MTU</em> è la dimensione massima di un pacchetto su un'interfaccia: 1500 byte su Ethernet. WireGuard aggiunge fino a 80 byte di intestazioni (IP esterno, UDP, WireGuard), per cui la MTU del tunnel è 1420. Un pacchetto da 1500 byte non ci sta, e il meccanismo che dovrebbe segnalarlo al mittente (Path MTU Discovery, via ICMP) spesso fallisce perché molte reti filtrano l'ICMP. Il sintomo tipico sono pagine che si caricano solo in parte. Il <em class="term">MSS clamping</em> previene il problema: il router riscrive nei pacchetti SYN delle connessioni TCP il valore di <em class="term">MSS</em>, la dimensione massima del segmento, e i due capi negoziano fin dall'inizio segmenti compatibili con il tunnel.
+          La <em class="term">MTU</em> è la dimensione massima di un pacchetto su un'interfaccia: 1500 byte su Ethernet. WireGuard aggiunge fino a 80 byte di intestazioni (IP esterno, UDP, WireGuard), per cui la MTU del tunnel è 1420. Un pacchetto da 1500 byte non entra nel tunnel, e il meccanismo che dovrebbe segnalarlo al mittente (Path MTU Discovery, via ICMP) spesso fallisce perché molte reti filtrano l'ICMP. Il sintomo tipico sono pagine che si caricano solo in parte. L'<em class="term">MSS clamping</em> previene il problema: il router riscrive nei pacchetti SYN delle connessioni TCP il valore dell'<em class="term">MSS</em>, la dimensione massima del segmento, e i due estremi della connessione negoziano fin dall'inizio segmenti compatibili con il tunnel.
         </div>
 
         <pre data-label="/etc/config/firewall"><code>config zone
@@ -367,7 +370,7 @@ config forwarding
     option target 'ACCEPT'
     option family 'ipv4'</code></pre>
 
-        <p>Non serve invece una regola per il DNS del router: i client usano il resolver di Proton attraverso il tunnel. Aprire la porta 53 del router sarebbe anzi controproducente, perché il resolver del router inoltra le query sulla WAN.</p>
+        <p>Non serve invece una regola per il DNS del router: i client usano il resolver di Proton attraverso il tunnel. Aprire la porta 53 del router sarebbe anzi controproducente, perché il resolver locale inoltra le query attraverso la WAN, fuori dal tunnel.</p>
 
         <p>In LuCI la stessa struttura si costruisce da <strong>Network → Firewall → Zones</strong>, indicando per la zona <code>vpnlan</code> la sola destinazione <code>wgvpn</code> in <em>Allow forward to destination zones</em>.</p>
 
@@ -378,11 +381,11 @@ config forwarding
         <ol class="steps">
           <li>
             <strong>Routing</strong>
-            Con <code>strict_enforcement</code>, se <code>wg0</code> non è attiva <code>pbr</code> continua ad applicare la policy della subnet: i pacchetti vengono scartati invece di ricadere sulla route predefinita della tabella principale, verso la WAN.
+            Con <code>strict_enforcement</code> attivo, se <code>wg0</code> è inattiva, <code>pbr</code> continua ad applicare la policy della subnet: i pacchetti vengono scartati invece di ricadere sulla route predefinita della tabella principale, verso la WAN.
           </li>
           <li>
             <strong>Firewall</strong>
-            Anche se un pacchetto raggiungesse la WAN, non esiste un forwarding da <code>vpnlan</code> a <code>wan</code>, e la policy <code>forward REJECT</code> della zona lo rifiuta.
+            Anche se un pacchetto venisse instradato verso la WAN, non esiste alcun forwarding da <code>vpnlan</code> a <code>wan</code>: la policy <code>forward REJECT</code> della zona lo rifiuta.
           </li>
         </ol>
 
@@ -390,7 +393,7 @@ config forwarding
 
         <h2>8. Verifica</h2>
 
-        <p>Da un client collegato alla SSID dedicata:</p>
+        <p>Da un client collegato alla rete dedicata:</p>
 
         <ol class="steps">
           <li>
@@ -403,29 +406,29 @@ config forwarding
           </li>
           <li>
             <strong>IPv6</strong>
-            Il client non deve avere un indirizzo IPv6 globale, e un test come <code>test-ipv6.com</code> non deve rilevare connettività IPv6.
+            Il client non deve avere un indirizzo IPv6 globale e un test come <code>test-ipv6.com</code> non deve rilevare connettività IPv6.
           </li>
           <li>
             <strong>Isolamento</strong>
-            Un ping verso un dispositivo della LAN principale, e verso un altro client della stessa SSID, deve fallire.
+            Un ping verso un dispositivo della LAN principale o verso un altro client della stessa rete deve fallire.
           </li>
           <li>
             <strong>Caduta del tunnel</strong>
-            Dal router, <code>ifdown wg0</code>: dal client ogni connessione deve fallire, compreso un ping a <code>1.1.1.1</code>. Dopo <code>ifup wg0</code> la connettività torna in pochi secondi. Un client che continua a navigare con il tunnel spento indica un errore di configurazione.
+            Si esegue <code>ifdown wg0</code> sul router: dal client ogni connessione deve fallire, compreso un ping a <code>1.1.1.1</code>. Dopo <code>ifup wg0</code> la connettività torna in pochi secondi. Un client che continua a navigare con il tunnel spento indica un errore di configurazione.
           </li>
         </ol>
 
         <h2>Prestazioni e limiti</h2>
 
-        <p><strong>Throughput.</strong> La cifratura avviene sulla CPU del router, che diventa il collo di bottiglia. Come ordine di grandezza, i SoC di fascia consumer meno recenti (MIPS o ARMv7, per esempio MediaTek MT7621 o Qualcomm IPQ40xx) si fermano intorno al centinaio di Mbit/s, mentre piattaforme ARMv8 recenti (MediaTek Filogic, Qualcomm IPQ807x) si avvicinano al gigabit. Uno speedtest dalla SSID dedicata e dalla LAN principale mostra subito il limite del proprio hardware.</p>
+        <p><strong>Throughput.</strong> La cifratura avviene sulla CPU del router, che diventa il collo di bottiglia. Come ordine di grandezza, i SoC di fascia consumer meno recenti (MIPS o ARMv7, per esempio MediaTek MT7621 o Qualcomm IPQ40xx) si fermano intorno al centinaio di Mbit/s, mentre piattaforme ARMv8 recenti (MediaTek Filogic, Qualcomm IPQ807x) si avvicinano al gigabit. Uno speedtest eseguito dalla rete dedicata e dalla LAN principale rivela subito il limite del proprio hardware.</p>
 
-        <p><strong>Latenza.</strong> Il percorso passa dal server VPN, e la latenza aumenta di conseguenza. Per la navigazione è irrilevante; per gaming competitivo o videoconferenze conviene la LAN principale.</p>
+        <p><strong>Latenza.</strong> Il traffico passa dal server VPN e la latenza aumenta di conseguenza. Per la navigazione è irrilevante; per gaming competitivo o videoconferenze conviene la LAN principale.</p>
 
         <p><strong>Privacy.</strong> La rete dedicata sposta la fiducia dall'operatore a Proton e nasconde l'indirizzo pubblico di casa ai servizi remoti. Non rende anonimi: cookie, account, fingerprinting del browser e telemetria dei dispositivi identificano l'utente indipendentemente dal percorso di rete.</p>
 
         <div class="callout callout-ok">
           <strong>Riepilogo</strong>
-          Una SSID con subnet dedicata e client isolati, instradata in WireGuard tramite <code>pbr</code>, con due zone firewall e un solo forwarding ammesso. Se il tunnel cade il traffico viene scartato, sia dal routing sia dal firewall. Sui client non serve alcuna configurazione.
+          Una rete Wi-Fi con subnet dedicata e client isolati, instradata in WireGuard tramite <code>pbr</code>, con due zone firewall e un solo forwarding ammesso. Se il tunnel cade, il traffico viene scartato sia dal routing sia dal firewall. Sui client non serve alcuna configurazione.
         </div>
 
         <h2>Riferimenti</h2>
@@ -464,6 +467,7 @@ config forwarding
   </footer>
 
   <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/nav.js" defer></script>
   <script src="../assets/js/article.js" defer></script>
 </body>
 </html>

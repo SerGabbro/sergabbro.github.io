@@ -28,7 +28,8 @@
         <span class="brand-name">Gabbro</span>
         <span class="brand-role">ing. elettronico</span>
       </a>
-      <nav class="nav-links" aria-label="Principale">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
         <a href="#articoli">Articoli</a>
         <a href="#strumenti">Strumenti</a>
         <a href="#chi-sono">Chi sono</a>
@@ -44,11 +45,13 @@
         <div class="hero-copy">
           <span class="eyebrow rise">Reti · Sistemi · Elettronica</span>
           <h1 class="rise rise-1">Note tecniche<br><span class="dim">dal banco di lavoro.</span></h1>
-          <p class="hero-lead rise rise-2">Sono un <strong>ingegnere elettronico</strong>. Qui documento configurazioni che uso davvero, diagnosi di problemi reali e strumenti interattivi, con il livello di dettaglio che avrei voluto trovare quando li ho affrontati.</p>
+          <p class="hero-lead rise rise-2">Sono un <strong>ingegnere elettronico</strong>. Qui raccolgo configurazioni che uso davvero, diagnosi di problemi reali e strumenti interattivi, con il livello di dettaglio che avrei voluto trovare io.</p>
           <div class="hero-actions rise rise-3">
             <a class="btn btn-primary" href="#articoli">Leggi gli articoli <span class="arr" aria-hidden="true">→</span></a>
             <a class="btn" href="tools/math.html">Math Canvas <span class="arr" aria-hidden="true">→</span></a>
           </div>
+          <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
+          <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
         </div>
 
         <aside class="readout rise rise-4" aria-label="Parametri dello sfondo">
@@ -59,7 +62,7 @@
             <dt>nodi</dt><dd data-ro="nodes">—</dd>
             <dt>link</dt><dd data-ro="links">—</dd>
             <dt>cursore</dt><dd data-ro="cursor">—</dd>
-            <dt>click</dt><dd>onda d'urto</dd>
+            <dt>tocco</dt><dd>onda d'urto</dd>
           </dl>
         </aside>
       </div>
@@ -81,7 +84,7 @@
                 <time datetime="2026-09-16">16 set 2026</time><span class="sep"></span><span>20 min</span>
               </div>
               <h3 class="card-title">Workstation remota: Tailscale, Sunshine, display virtuale e Home Assistant</h3>
-              <p class="card-excerpt">Accensione via Wake-on-LAN, avvio non presidiato fino a Windows e streaming a bassa latenza su un display virtuale 16:10, con i monitor fisici disattivati. Include la diagnosi di un Wake-on-LAN che si perdeva dopo ogni interruzione di alimentazione.</p>
+              <p class="card-excerpt">Accensione via Wake-on-LAN, avvio non presidiato fino a Windows e streaming a bassa latenza su un display virtuale 16:10, con i monitor fisici disattivati. Include la diagnosi di un Wake-on-LAN che smetteva di funzionare dopo ogni interruzione di corrente.</p>
               <div class="tags">
                 <span class="tag tag-green">networking</span>
                 <span class="tag tag-cyan">windows</span>
@@ -99,7 +102,7 @@
                 <time datetime="2025-03-12">12 mar 2025</time><span class="sep"></span><span>12 min</span>
               </div>
               <h3 class="card-title">Una rete Wi-Fi instradata in WireGuard verso ProtonVPN su OpenWrt</h3>
-              <p class="card-excerpt">Una SSID dedicata su una subnet isolata, con tutto il traffico instradato nel tunnel tramite policy-based routing, zone firewall separate e blocco del traffico in caso di caduta del tunnel.</p>
+              <p class="card-excerpt">Una rete Wi-Fi dedicata su una subnet isolata, con tutto il traffico instradato nel tunnel tramite policy-based routing, zone firewall separate e blocco del traffico in caso di caduta del tunnel.</p>
               <div class="tags">
                 <span class="tag tag-green">networking</span>
                 <span class="tag tag-cyan">linux</span>
@@ -195,6 +198,7 @@
   </footer>
 
   <script src="assets/js/sky.js" defer></script>
+  <script src="assets/js/nav.js" defer></script>
   <script src="assets/js/cards.js" defer></script>
 </body>
 </html>
