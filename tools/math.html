@@ -3,252 +3,291 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Math Canvas — Fourier · Taylor · Gabbro</title>
-  <meta name="description" content="Sintesi di forme d'onda con serie di Fourier e approssimazioni di Taylor, con spettro di ampiezza, di fase ed errore in tempo reale.">
+  <title>Math Canvas — Fourier e Taylor — Gabbro</title>
+  <meta name="description" content="Strumento interattivo: sintesi di forme d'onda periodiche con la serie di Fourier, con spettro di ampiezza e di fase, e approssimazioni di Taylor con l'andamento dell'errore, in tempo reale.">
   <meta name="theme-color" content="#07080a">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Math Canvas — Fourier e Taylor">
+  <meta property="og:url" content="https://sergabbro.github.io/tools/math.html">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e63946'/%3E%3Crect x='7' y='7' width='18' height='18' rx='4' fill='%2307080a'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=family=JetBrains+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/article.css">
   <link rel="stylesheet" href="../assets/css/math-canvas.css">
 </head>
 <body>
 
-  <!-- ══ TOPBAR ══ -->
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo-mark"></div>
-      <span class="brand-name">Math Canvas</span>
-      <span class="brand-sub">FOURIER · TAYLOR</span>
+  <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
+  <header class="navbar">
+    <div class="wrap wrap-wide">
+      <a href="../index.html" class="brand" aria-label="Gabbro, home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Gabbro</span>
+        <span class="brand-role">ing. elettronico</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti" aria-current="page">Strumenti</a>
+        <a href="../index.html#chi-sono">Chi sono</a>
+        <a href="https://github.com/sergabbro" class="ext" target="_blank" rel="noopener">GitHub</a>
+      </nav>
     </div>
-
-    <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="fourier">Fourier</button>
-      <button class="tab"        data-tab="taylor">Taylor</button>
-    </nav>
-
-    <a href="../index.html" class="home-link">← gabbro</a>
   </header>
 
-  <!-- ══ LAYOUT ══ -->
-  <div class="layout">
+  <main id="contenuto" class="wrap wrap-wide lab-page">
 
-    <!-- ── SIDEBAR ── -->
-    <aside class="sidebar">
+    <header class="lab-head rise">
+      <nav class="breadcrumb" aria-label="Percorso">
+        <a href="../index.html">gabbro</a><span class="sep">/</span>
+        <a href="../index.html#strumenti">strumenti</a><span class="sep">/</span>
+        <span>math-canvas</span>
+      </nav>
+      <span class="eyebrow">Strumento · Matematica</span>
+      <h1>Math Canvas</h1>
+      <p class="lead">Sintesi di forme d'onda periodiche tramite serie di Fourier, con spettro di ampiezza e di fase in tempo reale, e approssimazioni polinomiali di Taylor con analisi dell'errore residuo.</p>
+      <nav class="tabs" role="tablist" aria-label="Argomento">
+        <button class="tab active" data-tab="fourier" type="button">Fourier</button>
+        <button class="tab"        data-tab="taylor"  type="button">Taylor</button>
+      </nav>
+    </header>
 
-      <!-- FOURIER PANEL -->
-      <section class="panel active" id="panel-fourier">
-        <div class="panel-head">
-          <h2>Serie di Fourier</h2>
-          <p class="panel-desc">Scomposizione di forme d'onda periodiche in armoniche sinusoidali.</p>
-        </div>
+    <div class="lab rise rise-1">
 
-        <div class="field">
-          <label for="f-wave">Forma d'onda</label>
-          <select id="f-wave">
-            <option value="square">Onda quadra</option>
-            <option value="triangle">Onda triangolare</option>
-            <option value="sawtooth">Dente di sega ↑</option>
-            <option value="sawtooth_down">Dente di sega ↓</option>
-            <option value="pulse_25">Impulso duty 25%</option>
-            <option value="pulse_10">Impulso duty 10%</option>
-            <option value="semicircle">Sin rettificata ½onda</option>
-            <option value="fullrect">Sin rettificata intera</option>
-            <option value="parabola">Parabolica</option>
-            <option value="trapezoid">Trapezoidale</option>
-            <option value="staircase">Scalare (4 gradini)</option>
-            <option value="weierstrass">Weierstrass (a=0.5, b=3)</option>
-          </select>
-        </div>
+      <!-- ── CONTROLLI ── -->
+      <aside class="sidebar" aria-label="Parametri">
 
-        <div class="field">
-          <div class="slider-head">
-            <label for="f-harmonics">Armoniche N</label>
-            <span class="slider-val" id="f-harmonics-val">8</span>
+        <!-- FOURIER PANEL -->
+        <section class="panel active" id="panel-fourier">
+          <div class="panel-head">
+            <h2>Serie di Fourier</h2>
+            <p class="panel-desc">Scomposizione di forme d'onda periodiche in armoniche sinusoidali.</p>
           </div>
-          <input type="range" id="f-harmonics" min="1" max="80" value="8">
-        </div>
 
-        <div class="field">
-          <div class="slider-head">
-            <label for="f-periods">Periodi</label>
-            <span class="slider-val" id="f-periods-val">2</span>
+          <div class="field">
+            <label for="f-wave">Forma d'onda</label>
+            <select id="f-wave">
+              <option value="square">Onda quadra</option>
+              <option value="triangle">Onda triangolare</option>
+              <option value="sawtooth">Dente di sega ↑</option>
+              <option value="sawtooth_down">Dente di sega ↓</option>
+              <option value="pulse_25">Impulso duty 25%</option>
+              <option value="pulse_10">Impulso duty 10%</option>
+              <option value="semicircle">Sin rettificata ½onda</option>
+              <option value="fullrect">Sin rettificata intera</option>
+              <option value="parabola">Parabolica</option>
+              <option value="trapezoid">Trapezoidale</option>
+              <option value="staircase">Scalare (4 gradini)</option>
+              <option value="weierstrass">Weierstrass (a=0.5, b=3)</option>
+            </select>
           </div>
-          <input type="range" id="f-periods" min="1" max="8" value="2">
-        </div>
 
-        <div class="field">
-          <div class="slider-head">
-            <label for="f-amplitude">Ampiezza</label>
-            <span class="slider-val" id="f-amplitude-val">80%</span>
+          <div class="field">
+            <div class="slider-head">
+              <label for="f-harmonics">Armoniche N</label>
+              <span class="slider-val" id="f-harmonics-val">8</span>
+            </div>
+            <input type="range" id="f-harmonics" min="1" max="80" value="8">
           </div>
-          <input type="range" id="f-amplitude" min="20" max="100" value="80">
+
+          <div class="field">
+            <div class="slider-head">
+              <label for="f-periods">Periodi</label>
+              <span class="slider-val" id="f-periods-val">2</span>
+            </div>
+            <input type="range" id="f-periods" min="1" max="8" value="2">
+          </div>
+
+          <div class="field">
+            <div class="slider-head">
+              <label for="f-amplitude">Ampiezza</label>
+              <span class="slider-val" id="f-amplitude-val">80%</span>
+            </div>
+            <input type="range" id="f-amplitude" min="20" max="100" value="80">
+          </div>
+
+          <div class="rule"></div>
+
+          <div class="field toggle-row">
+            <label for="f-show-components">Componenti armoniche</label>
+            <label class="switch">
+              <input type="checkbox" id="f-show-components" checked>
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
+          <div class="field toggle-row">
+            <label for="f-show-spectrum">Spettro in frequenza</label>
+            <label class="switch">
+              <input type="checkbox" id="f-show-spectrum" checked>
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
+          <div class="field toggle-row">
+            <label for="f-show-phase">Spettro di fase</label>
+            <label class="switch">
+              <input type="checkbox" id="f-show-phase">
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
+          <div class="info-box" id="f-formula"></div>
+
+          <div class="kbd-hint">
+            <kbd>←</kbd><kbd>→</kbd> armoniche &nbsp;·&nbsp;
+            <kbd>↑</kbd><kbd>↓</kbd> ±5 &nbsp;·&nbsp;
+            <kbd>1</kbd> Fourier &nbsp;·&nbsp; <kbd>2</kbd> Taylor
+          </div>
+        </section>
+
+        <!-- TAYLOR PANEL -->
+        <section class="panel" id="panel-taylor">
+          <div class="panel-head">
+            <h2>Serie di Taylor</h2>
+            <p class="panel-desc">Approssimazione polinomiale attorno a x₀ = 0. Il range si adatta alla funzione.</p>
+          </div>
+
+          <div class="field">
+            <label for="t-func">Funzione</label>
+            <select id="t-func">
+              <option value="sin">sin(x)</option>
+              <option value="cos">cos(x)</option>
+              <option value="exp">eˣ</option>
+              <option value="log">ln(1+x)</option>
+              <option value="sinh">sinh(x)</option>
+              <option value="cosh">cosh(x)</option>
+              <option value="arctan">arctan(x)</option>
+              <option value="erf">erf(x)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="slider-head">
+              <label for="t-terms">Termini</label>
+              <span class="slider-val" id="t-terms-val">5</span>
+            </div>
+            <input type="range" id="t-terms" min="1" max="30" value="5">
+          </div>
+
+          <div class="field">
+            <div class="slider-head">
+              <label for="t-range">Zoom x</label>
+              <span class="slider-val" id="t-range-val">—</span>
+            </div>
+            <input type="range" id="t-range" min="1" max="20" value="10">
+          </div>
+
+          <div class="rule"></div>
+
+          <div class="field toggle-row">
+            <label for="t-show-original">Funzione esatta</label>
+            <label class="switch">
+              <input type="checkbox" id="t-show-original" checked>
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
+          <div class="field toggle-row">
+            <label for="t-show-error">Errore f(x) − Tₙ(x)</label>
+            <label class="switch">
+              <input type="checkbox" id="t-show-error">
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
+          <div class="info-box" id="t-formula"></div>
+
+          <div class="kbd-hint">
+            <kbd>←</kbd><kbd>→</kbd> termini &nbsp;·&nbsp;
+            <kbd>↑</kbd><kbd>↓</kbd> ±5 &nbsp;·&nbsp;
+            <kbd>1</kbd> Fourier &nbsp;·&nbsp; <kbd>2</kbd> Taylor
+          </div>
+        </section>
+
+      </aside>
+
+      <!-- ── AREA GRAFICI ── -->
+      <section class="canvas-area">
+
+        <!-- waveform / function -->
+        <div class="canvas-card">
+          <div class="canvas-head">
+            <h3 id="main-canvas-title">—</h3>
+            <span class="canvas-meta" id="main-canvas-meta">—</span>
+          </div>
+          <div class="canvas-wrap h-main">
+            <canvas id="main-canvas"></canvas>
+          </div>
         </div>
 
-        <div class="rule"></div>
-
-        <div class="field toggle-row">
-          <label for="f-show-components">Componenti armoniche</label>
-          <label class="switch">
-            <input type="checkbox" id="f-show-components" checked>
-            <span class="sw-track"></span>
-          </label>
+        <!-- harmonics / progressive approximations -->
+        <div class="canvas-card" id="comp-card">
+          <div class="canvas-head">
+            <h3 id="comp-title">—</h3>
+            <span class="canvas-meta" id="comp-meta">—</span>
+          </div>
+          <div class="canvas-wrap h-comp">
+            <canvas id="comp-canvas"></canvas>
+          </div>
+          <div class="legend" id="comp-legend"></div>
         </div>
 
-        <div class="field toggle-row">
-          <label for="f-show-spectrum">Spettro in frequenza</label>
-          <label class="switch">
-            <input type="checkbox" id="f-show-spectrum" checked>
-            <span class="sw-track"></span>
-          </label>
+        <!-- frequency spectrum -->
+        <div class="canvas-card is-hidden" id="spec-card">
+          <div class="canvas-head">
+            <h3 id="spec-title">Spettro di ampiezza</h3>
+            <span class="canvas-meta" id="spec-meta">—</span>
+          </div>
+          <div class="canvas-wrap h-spec">
+            <canvas id="spec-canvas"></canvas>
+          </div>
+          <div class="legend" id="spec-legend"></div>
         </div>
 
-        <div class="field toggle-row">
-          <label for="f-show-phase">Spettro di fase</label>
-          <label class="switch">
-            <input type="checkbox" id="f-show-phase">
-            <span class="sw-track"></span>
-          </label>
+        <!-- phase spectrum -->
+        <div class="canvas-card is-hidden" id="phase-card">
+          <div class="canvas-head">
+            <h3>Spettro di fase</h3>
+            <span class="canvas-meta" id="phase-meta">—</span>
+          </div>
+          <div class="canvas-wrap h-spec">
+            <canvas id="phase-canvas"></canvas>
+          </div>
         </div>
 
-        <div class="info-box" id="f-formula"></div>
-
-        <div class="kbd-hint">
-          <kbd>←</kbd><kbd>→</kbd> armoniche &nbsp;·&nbsp;
-          <kbd>↑</kbd><kbd>↓</kbd> ±5 &nbsp;·&nbsp;
-          <kbd>1</kbd> Fourier &nbsp;·&nbsp; <kbd>2</kbd> Taylor
+        <!-- approximation error (taylor only) -->
+        <div class="canvas-card is-hidden" id="error-card">
+          <div class="canvas-head">
+            <h3>Errore: f(x) − Tₙ(x)</h3>
+            <span class="canvas-meta" id="error-meta">—</span>
+          </div>
+          <div class="canvas-wrap h-spec">
+            <canvas id="error-canvas"></canvas>
+          </div>
         </div>
+
       </section>
+    </div>
 
-      <!-- TAYLOR PANEL -->
-      <section class="panel" id="panel-taylor">
-        <div class="panel-head">
-          <h2>Serie di Taylor</h2>
-          <p class="panel-desc">Approssimazione polinomiale attorno a x₀ = 0. Il range si adatta alla funzione.</p>
-        </div>
+  </main>
 
-        <div class="field">
-          <label for="t-func">Funzione</label>
-          <select id="t-func">
-            <option value="sin">sin(x)</option>
-            <option value="cos">cos(x)</option>
-            <option value="exp">eˣ</option>
-            <option value="log">ln(1+x)</option>
-            <option value="sinh">sinh(x)</option>
-            <option value="cosh">cosh(x)</option>
-            <option value="arctan">arctan(x)</option>
-            <option value="erf">erf(x)</option>
-          </select>
-        </div>
+  <footer class="site-footer">
+    <div class="wrap wrap-wide">
+      <span>© 2025–2026 Gabbro</span>
+      <nav aria-label="Piè di pagina">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="https://github.com/sergabbro" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
 
-        <div class="field">
-          <div class="slider-head">
-            <label for="t-terms">Termini</label>
-            <span class="slider-val" id="t-terms-val">5</span>
-          </div>
-          <input type="range" id="t-terms" min="1" max="30" value="5">
-        </div>
-
-        <div class="field">
-          <div class="slider-head">
-            <label for="t-range">Zoom x</label>
-            <span class="slider-val" id="t-range-val">—</span>
-          </div>
-          <input type="range" id="t-range" min="1" max="20" value="10">
-        </div>
-
-        <div class="rule"></div>
-
-        <div class="field toggle-row">
-          <label for="t-show-original">Funzione esatta</label>
-          <label class="switch">
-            <input type="checkbox" id="t-show-original" checked>
-            <span class="sw-track"></span>
-          </label>
-        </div>
-
-        <div class="field toggle-row">
-          <label for="t-show-error">Errore f(x) − Tₙ(x)</label>
-          <label class="switch">
-            <input type="checkbox" id="t-show-error">
-            <span class="sw-track"></span>
-          </label>
-        </div>
-
-        <div class="info-box" id="t-formula"></div>
-
-        <div class="kbd-hint">
-          <kbd>←</kbd><kbd>→</kbd> termini &nbsp;·&nbsp;
-          <kbd>↑</kbd><kbd>↓</kbd> ±5 &nbsp;·&nbsp;
-          <kbd>1</kbd> Fourier &nbsp;·&nbsp; <kbd>2</kbd> Taylor
-        </div>
-      </section>
-
-    </aside>
-
-    <!-- ── CANVAS AREA ── -->
-    <section class="canvas-area">
-
-      <!-- waveform / function -->
-      <div class="canvas-card">
-        <div class="canvas-head">
-          <h3 id="main-canvas-title">—</h3>
-          <span class="canvas-meta" id="main-canvas-meta">—</span>
-        </div>
-        <div class="canvas-wrap h-main">
-          <canvas id="main-canvas"></canvas>
-        </div>
-      </div>
-
-      <!-- harmonics / progressive approximations -->
-      <div class="canvas-card" id="comp-card">
-        <div class="canvas-head">
-          <h3 id="comp-title">—</h3>
-          <span class="canvas-meta" id="comp-meta">—</span>
-        </div>
-        <div class="canvas-wrap h-comp">
-          <canvas id="comp-canvas"></canvas>
-        </div>
-        <div class="legend" id="comp-legend"></div>
-      </div>
-
-      <!-- frequency spectrum -->
-      <div class="canvas-card is-hidden" id="spec-card">
-        <div class="canvas-head">
-          <h3 id="spec-title">Spettro di ampiezza</h3>
-          <span class="canvas-meta" id="spec-meta">—</span>
-        </div>
-        <div class="canvas-wrap h-spec">
-          <canvas id="spec-canvas"></canvas>
-        </div>
-        <div class="legend" id="spec-legend"></div>
-      </div>
-
-      <!-- phase spectrum -->
-      <div class="canvas-card is-hidden" id="phase-card">
-        <div class="canvas-head">
-          <h3>Spettro di fase</h3>
-          <span class="canvas-meta" id="phase-meta">—</span>
-        </div>
-        <div class="canvas-wrap h-spec">
-          <canvas id="phase-canvas"></canvas>
-        </div>
-      </div>
-
-      <!-- approximation error (taylor only) -->
-      <div class="canvas-card is-hidden" id="error-card">
-        <div class="canvas-head">
-          <h3>Errore: f(x) − Tₙ(x)</h3>
-          <span class="canvas-meta" id="error-meta">—</span>
-        </div>
-        <div class="canvas-wrap h-spec">
-          <canvas id="error-canvas"></canvas>
-        </div>
-      </div>
-
-    </section>
-  </div>
-
-  <script src="../assets/js/math-canvas.js"></script>
+  <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/nav.js" defer></script>
+  <script src="../assets/js/math-canvas.js" defer></script>
 </body>
 </html>

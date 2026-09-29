@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Accesso fisico e cifratura del disco su Linux — Gabbro</title>
+  <title>Cifratura del disco su Linux: perché la password di login non basta — Gabbro</title>
   <meta name="description" content="Perché i permessi del sistema operativo non proteggono i dati a riposo, cosa garantisce LUKS2 e quali limiti restano: /boot in chiaro, TPM, chiavi in RAM, passphrase.">
   <meta name="theme-color" content="#07080a">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Accesso fisico e cifratura del disco su Linux">
+  <meta property="og:title" content="Cifratura del disco su Linux: perché la password di login non basta">
   <meta property="og:url" content="https://sergabbro.github.io/articles/linux_cifratura.html">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e63946'/%3E%3Crect x='7' y='7' width='18' height='18' rx='4' fill='%2307080a'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,10 +49,10 @@
 
       <header class="article-header rise rise-1">
         <div class="card-meta">
-          <time datetime="2025-02-19">19 febbraio 2025</time><span class="sep"></span><span>7 min di lettura</span>
+          <time datetime="2025-02-19">19 febbraio 2025</time>
         </div>
-        <h1>Accesso fisico e cifratura del disco su Linux</h1>
-        <p class="lead">La password di login protegge un sistema in esecuzione, non i dati memorizzati sul disco. Questo articolo spiega perché, che cosa garantisce la cifratura completa con LUKS2 e quali limiti restano anche con il disco cifrato.</p>
+        <h1>Cifratura del disco su Linux: perché la password di login non basta</h1>
+        <p class="lead">La password di login protegge un sistema in esecuzione, non i dati a riposo sul disco. Come funziona la catena di avvio di Linux, cosa garantisce la cifratura con LUKS2 e quali limiti restano aperti anche a disco cifrato.</p>
         <div class="tags">
           <span class="tag tag-red">security</span>
           <span class="tag tag-cyan">linux</span>
@@ -60,30 +60,82 @@
           <span class="tag tag-gray">grub</span>
           <span class="tag tag-gray">tpm</span>
         </div>
-        <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
-        <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
       </header>
 
       <div class="article-body rise rise-2">
 
         <h2>Il modello di minaccia</h2>
 
-        <p>Il caso di riferimento è il più comune: un portatile perso, rubato o lasciato incustodito. Chi lo trova ha <strong>accesso fisico</strong> alla macchina, ma non conosce alcuna password. La domanda è che cosa può leggere o modificare.</p>
+        <p>Quando si valuta la sicurezza di un computer portatile, la password dell'account utente è spesso la prima misura a cui si pensa. Tuttavia, quella password protegge l'accesso alla sessione, non i dati memorizzati fisicamente sul supporto: chiunque abbia accesso fisico alla macchina può estrarre le informazioni scavalcando del tutto il sistema operativo originale.</p>
 
-        <p>Conviene distinguere due situazioni. Con la macchina <strong>spenta</strong>, il disco contiene i dati <em>a riposo</em> e la loro protezione dipende solo da come sono memorizzati. Con la macchina <strong>accesa o sospesa</strong>, i dati sono accessibili al sistema operativo e la protezione dipende dal sistema in esecuzione. La cifratura del disco protegge il primo caso; il secondo, come si vedrà, molto meno.</p>
+        <p>Per analizzare la sicurezza dei dati conviene distinguere due stati fondamentali: la macchina <strong>spenta</strong>, in cui i dati sono <em>a riposo</em> e la loro riservatezza dipende esclusivamente da come sono scritti sul disco; e la macchina <strong>accesa o in sospensione</strong>, in cui le chiavi di cifratura risiedono in RAM e la protezione è delegata al kernel in esecuzione. La cifratura del disco risolve in modo robusto il primo scenario, mentre offre garanzie limitate nel secondo.</p>
 
         <div class="callout callout-risk">
-          <strong>Perimetro dell'articolo</strong>
-          Le procedure citate sono le stesse che le distribuzioni documentano per il recupero di una password dimenticata. Qui servono a motivare le contromisure e vanno provate solo su macchine proprie.
+          <strong>Limitazione di responsabilità</strong>
+          Le procedure citate sono le stesse che le distribuzioni documentano per recuperare una password dimenticata. Qui servono a capire perché le contromisure sono necessarie e vanno provate solo su macchine proprie.
         </div>
 
-        <h2>Perché la password di login non basta</h2>
+        <h2>I controlli di accesso dipendono dal kernel</h2>
 
-        <p>I permessi di Linux, dalla password utente ai diritti sui file, sono applicati dal <strong>kernel in esecuzione</strong>. Chi controlla la fase di avvio controlla quale kernel parte e con quali parametri, e può quindi aggirare quei permessi senza forzarli: basta avviare il sistema in modo che non vengano applicati.</p>
+        <p>Partiamo da un fatto che spesso si dà per scontato: i permessi di Linux, dalla password utente ai diritti sui file, non sono una proprietà del disco. Sono regole applicate dal <strong>kernel in esecuzione</strong> e dai programmi che il kernel avvia. Chi controlla la fase di avvio decide quale kernel parte, con quali parametri e quale programma viene eseguito per primo; di conseguenza può aggirare quei permessi senza forzarli, semplicemente avviando il sistema in modo che non vengano mai applicati.</p>
 
-        <p>Il caso più noto è il bootloader. GRUB permette di modificare la riga di comando del kernel prima dell'avvio, premendo il tasto <code>e</code> sulla voce del menu. È una funzione voluta, pensata per la manutenzione: aggiungendo un parametro come <code>rd.break</code> o <code>init=/bin/bash</code> il sistema si ferma in una shell di root prima del login, ed è così che si reimposta una password di root dimenticata. Se il disco non è cifrato, la stessa funzione è a disposizione di chiunque si trovi davanti alla tastiera.</p>
+        <p>Il caso più noto è il bootloader. GRUB permette di modificare la riga di comando del kernel prima dell'avvio, premendo il tasto <code>e</code> sulla voce del menu. È una funzione voluta, pensata per la manutenzione: aggiungendo un parametro come <code>init=/bin/bash</code> o <code>rd.break</code> il sistema si ferma in una shell di root prima del login, ed è proprio così che si reimposta una password di root dimenticata. Se il disco non è cifrato, però, la stessa funzione è a disposizione di chiunque si trovi davanti alla tastiera. Per capire perché sia possibile, conviene guardare da vicino come si avvia Linux.</p>
 
-        <p>Il bootloader però è solo una delle vie. Con accesso fisico si può anche avviare un sistema live da USB, oppure estrarre l'SSD e collegarlo a un'altra macchina. In tutti e tre i casi il risultato è lo stesso: il filesystem viene montato da un kernel che non applica le regole del sistema originale.</p>
+        <h2>Come si avvia Linux</h2>
+
+        <p>Dall'accensione alla schermata di login la macchina attraversa una catena di passaggi, ognuno dei quali carica e passa il controllo al successivo:</p>
+
+        <ol class="steps">
+          <li>
+            <strong>Firmware (UEFI o BIOS)</strong>
+            Inizializza l'hardware, sceglie il dispositivo di avvio e carica il bootloader. Qui si decide se partire dal disco interno o da un supporto rimovibile.
+          </li>
+          <li>
+            <strong>Bootloader (GRUB)</strong>
+            Carica in memoria il kernel e l'initramfs e passa al kernel una <em class="term">riga di comando</em>: una stringa di parametri che ne condiziona il comportamento. È la riga che si modifica premendo <code>e</code>.
+          </li>
+          <li>
+            <strong>Kernel</strong>
+            Inizializza i driver ed estrae l'initramfs in memoria. Il kernel di per sé non conosce utenti né password: esegue i programmi che gli vengono indicati, con i privilegi che gli vengono indicati.
+          </li>
+          <li>
+            <strong>Initramfs</strong>
+            Un piccolo filesystem temporaneo che contiene gli strumenti per raggiungere la vera partizione di root: i driver del disco e, se il disco è cifrato, il programma che chiede la passphrase LUKS. Una volta montata la root, cede il controllo al sistema installato.
+          </li>
+          <li>
+            <strong>Init (systemd)</strong>
+            Il primo processo del sistema, con <em class="term">PID 1</em>, eseguito come root. Avvia tutti i servizi, compresi quelli che gestiscono il login.
+          </li>
+          <li>
+            <strong>Login</strong>
+            Il login da terminale (<code>agetty</code> e <code>login</code>) o quello grafico (GDM, SDDM) chiede nome utente e password e li verifica tramite PAM contro gli hash conservati in <code>/etc/shadow</code>.
+          </li>
+        </ol>
+
+        <p>Il punto chiave è l'ultimo passaggio: la verifica della password non la esegue il kernel, la esegue un normale programma avviato da systemd. Se quel programma non viene mai eseguito, nessuno chiede la password.</p>
+
+        <h3>Che cosa significa <code>init=/bin/bash</code></h3>
+
+        <p>Il parametro <code>init=</code> indica al kernel quale programma eseguire come PID 1 al posto di systemd. Con <code>init=/bin/bash</code>, il kernel monta la partizione di root e avvia direttamente una shell invece del sistema completo. Poiché il primo processo gira sempre come root, quella shell eredita i pieni privilegi di amministratore; systemd non parte, e con esso non partono i servizi, la rete e soprattutto il login. In pratica i passaggi 5 e 6 della catena vengono saltati: non c'è più nulla che chieda la password.</p>
+
+        <p>Alcuni dettagli aiutano a capire che cosa sta succedendo davvero, e non sono banali capricci del sistema:</p>
+
+        <ul>
+          <li>la root risulta montata <strong>in sola lettura</strong>, perché la riga di comando contiene di norma il parametro <code>ro</code> e sarebbe stato systemd a rimontarla in scrittura in un secondo momento;</li>
+          <li>comandi come <code>reboot</code> o <code>shutdown</code> non funzionano, perché delegano il lavoro a systemd, che qui non è in esecuzione;</li>
+          <li>uscendo dalla shell il kernel va in <em>panic</em> con il messaggio <code>Attempted to kill init!</code>, dato che il PID 1 non può terminare.</li>
+        </ul>
+
+        <p>Il parametro <code>rd.break</code>, disponibile sulle distribuzioni che usano dracut come Fedora, agisce un passo prima: interrompe l'avvio dentro l'initramfs (passaggio 4), dopo aver individuato la root ma prima di cederle il controllo. Il meccanismo è lo stesso — si scavalca l'init del sistema installato — e conferma il concetto di fondo: <strong>chi controlla la riga di comando del kernel controlla che cosa viene eseguito per primo</strong>, e quindi se i controlli di accesso verranno applicati o meno.</p>
+
+        <div class="callout callout-def">
+          <strong>Perché non è un difetto</strong>
+          Le distribuzioni offrono anche modalità di manutenzione più controllate: i target di systemd <code>rescue.target</code> ed <code>emergency.target</code> aprono una shell passando però da <code>sulogin</code>, che richiede la password di root. <code>init=</code> e <code>rd.break</code> non passano da systemd, quindi da nessun controllo: sono strumenti di recupero legittimi, e il fatto che funzionino senza credenziali è esattamente la ragione per cui un disco non cifrato non può considerarsi protetto.
+        </div>
+
+        <h3>Altre vie di accesso</h3>
+
+        <p>Il bootloader è comunque solo una delle strade. Con accesso fisico si può anche avviare un sistema live da un supporto esterno, oppure estrarre l'SSD e collegarlo a un'altra macchina. In tutti e tre i casi il risultato è identico: il filesystem viene montato da un kernel che non applica le regole del sistema originale, e i permessi che sembravano proteggere i file semplicemente non esistono più.</p>
 
         <div class="table-wrap">
           <table class="left">
@@ -99,7 +151,7 @@
         </div>
         <p class="table-note">* finché il firmware non viene resettato, operazione che su molti desktop richiede solo di rimuovere la batteria tampone.</p>
 
-        <p>La tabella riassume il punto: le password su bootloader e firmware sono controlli di accesso e proteggono solo finché il dato resta nella macchina che li applica. La cifratura rende il dato illeggibile ovunque venga montato.</p>
+        <p>La tabella riassume il concetto: le password su bootloader e firmware sono controlli di accesso e proteggono solo finché il dato resta nella macchina che li applica. La cifratura, invece, rende il dato illeggibile ovunque venga montato.</p>
 
         <h2>LUKS2: che cosa protegge</h2>
 
