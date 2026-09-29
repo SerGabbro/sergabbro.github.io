@@ -1,0 +1,234 @@
+/* =========================================================
+   GABBRO — diagrams.css
+   Schemi e diagrammi in HTML/CSS usati negli articoli.
+   Richiede base.css e article.css.
+   ========================================================= */
+
+/* =========================================================
+   SCHEMA DI INSTRADAMENTO (openwrt_wireguard_proton)
+   ========================================================= */
+.flow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 22px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-align: center;
+}
+.flow .box {
+  padding: 12px 8px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.flow .box b { display: block; color: var(--text); font-family: var(--font); font-size: 13.5px; font-weight: 600; }
+.flow .box.vpn { border-color: rgba(34, 211, 238, 0.45); background: rgba(34, 211, 238, 0.06); }
+.flow .arrow { color: var(--accent-3); }
+.flow-note {
+  margin: 0 0 22px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .flow { grid-template-columns: 1fr; }
+  .flow .arrow { transform: rotate(90deg); }
+}
+
+/* =========================================================
+   TOPOLOGIA TAILNET E MAPPA DEI DISPLAY (remote_gaming_tailscale_vdd)
+   ========================================================= */
+/* =========================================
+   DIAGRAMMA — topologia tailnet
+   ========================================= */
+.diagram {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 18px 16px;
+  margin: 0 0 20px;
+}
+
+.diagram-caption {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.05em;
+  text-align: center;
+  margin-top: 14px;
+  line-height: 1.55;
+}
+
+.tailnet {
+  border: 1px dashed rgba(34, 211, 238, 0.35);
+  border-radius: var(--radius);
+  padding: 22px 14px 14px;
+  position: relative;
+}
+.tailnet::before {
+  content: "tailnet · 100.64.0.0/10";
+  position: absolute;
+  top: -8px; left: 14px;
+  background: var(--bg-1);
+  padding: 0 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent-3);
+}
+
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.node {
+  background: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+  text-align: center;
+}
+.node-kind {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 0 6px;
+  border: 1px solid var(--border-2);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-3);
+}
+.node-name { font-family: var(--font); font-size: 13.5px; font-weight: 600; color: var(--text); }
+.node-role {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 3px;
+  line-height: 1.45;
+  display: block;
+}
+
+.wire {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--accent-3);
+  letter-spacing: 0.04em;
+  margin: 10px 0 0;
+}
+
+.lan-box {
+  margin-top: 14px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--bg-2);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.lan-box b { color: var(--text); font-weight: 600; }
+
+.drop {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--accent-2);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* =========================================
+   DIAGRAMMA — mappa dei display
+   ========================================= */
+.display-map {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.dmap-panel {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px 12px;
+}
+
+.dmap-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: center;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.dmap-title b { color: var(--text-dim); font-weight: 600; }
+
+.dmap-stage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 9px;
+  min-height: 96px;
+}
+
+.mon-wrap { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+
+.mon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+.mon-169  { width: 74px; height: 42px; }
+.mon-1610 { width: 70px; height: 44px; }
+
+.mon-on     { background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text-dim); }
+.mon-active { background: rgba(34, 211, 238, 0.13); border: 1px solid var(--accent-3); color: var(--accent-3); }
+.mon-off    { background: transparent; border: 1px dashed var(--text-faint); color: var(--text-faint); }
+
+.mon-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  text-align: center;
+  line-height: 1.4;
+}
+.mon-wrap.is-primary .mon-label b { color: var(--accent-ok); font-weight: 500; }
+
+.dmap-cmd {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: center;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .display-map { grid-template-columns: 1fr; }
+  .node-grid { grid-template-columns: 1fr; }
+  .diagram { padding: 24px 12px 14px; }
+}
