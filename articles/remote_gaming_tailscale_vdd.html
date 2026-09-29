@@ -3,909 +3,654 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Workstation in streaming: Tailscale, Sunshine, display virtuale e Home Assistant — Gabbro</title>
-  <link rel="stylesheet" href="../style.css">
-  <style>
-    /* Stile per i "termini glossario" dentro i callout gialli */
-    .callout-warning .callout-body em.term {
-      font-style: normal;
-      font-family: var(--mono);
-      font-size: 12px;
-      background: rgba(245, 158, 11, 0.15);
-      color: var(--accent-2);
-      padding: 1px 6px;
-      border-radius: 3px;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      margin-right: 4px;
-    }
-
-    /* =========================================
-       DIAGRAMMA — topologia tailnet
-       ========================================= */
-    .diagram {
-      background: var(--bg-1);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px 18px 16px;
-      margin: 0 0 20px;
-    }
-
-    .diagram-caption {
-      font-family: var(--mono);
-      font-size: 10.5px;
-      color: var(--text-faint);
-      letter-spacing: 0.05em;
-      text-align: center;
-      margin-top: 14px;
-      line-height: 1.55;
-    }
-
-    .tailnet {
-      border: 1px dashed rgba(34, 211, 238, 0.35);
-      border-radius: var(--radius);
-      padding: 22px 14px 14px;
-      position: relative;
-    }
-    .tailnet::before {
-      content: "tailnet · 100.64.0.0/10";
-      position: absolute;
-      top: -8px; left: 14px;
-      background: var(--bg-1);
-      padding: 0 8px;
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 0.06em;
-      color: var(--accent-3);
-    }
-
-    .node-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .node {
-      background: var(--bg-2);
-      border: 1px solid var(--border-2);
-      border-radius: var(--radius-sm);
-      padding: 12px 8px;
-      text-align: center;
-    }
-    .node-icon { font-size: 20px; line-height: 1; margin-bottom: 8px; }
-    .node-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
-    .node-role {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-faint);
-      margin-top: 3px;
-      line-height: 1.45;
-      display: block;
-    }
-
-    .wire {
-      text-align: center;
-      font-family: var(--mono);
-      font-size: 10.5px;
-      color: var(--accent-3);
-      letter-spacing: 0.04em;
-      margin: 10px 0 0;
-    }
-
-    .lan-box {
-      margin-top: 14px;
-      border: 1px solid var(--border-2);
-      border-radius: var(--radius-sm);
-      padding: 10px 12px;
-      background: var(--bg-2);
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-dim);
-    }
-    .lan-box b { color: var(--text); font-weight: 600; }
-
-    .drop {
-      text-align: center;
-      font-family: var(--mono);
-      font-size: 10.5px;
-      color: var(--accent-2);
-      margin-top: 10px;
-      line-height: 1.5;
-    }
-
-    /* =========================================
-       DIAGRAMMA — mappa dei display
-       ========================================= */
-    .display-map {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin: 0 0 20px;
-    }
-
-    .dmap-panel {
-      background: var(--bg-1);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 12px 12px;
-    }
-
-    .dmap-title {
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-faint);
-      text-align: center;
-      padding-bottom: 10px;
-      margin-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    .dmap-title b { color: var(--text-dim); font-weight: 600; }
-
-    .dmap-stage {
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      gap: 9px;
-      min-height: 96px;
-    }
-
-    .mon-wrap { display: flex; flex-direction: column; align-items: center; gap: 7px; }
-
-    .mon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-      font-family: var(--mono);
-      font-size: 15px;
-      font-weight: 600;
-    }
-    .mon-169  { width: 74px; height: 42px; }
-    .mon-1610 { width: 70px; height: 44px; }
-
-    .mon-on     { background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text-dim); }
-    .mon-active { background: rgba(34, 211, 238, 0.13); border: 1px solid var(--accent-3); color: var(--accent-3); }
-    .mon-off    { background: transparent; border: 1px dashed var(--text-faint); color: var(--text-faint); }
-
-    .mon-label {
-      font-family: var(--mono);
-      font-size: 9.5px;
-      color: var(--text-faint);
-      text-align: center;
-      line-height: 1.4;
-    }
-    .mon-wrap.is-primary .mon-label b { color: var(--accent-ok); font-weight: 500; }
-
-    .dmap-cmd {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-faint);
-      text-align: center;
-      margin-top: 14px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-      line-height: 1.5;
-    }
-
-    /* =========================================
-       TABELLA BANDA
-       ========================================= */
-    .table-wrap { overflow-x: auto; margin: 0 0 8px; }
-
-    table.bw {
-      width: 100%;
-      min-width: 420px;
-      border-collapse: collapse;
-    }
-    table.bw th, table.bw td {
-      border: 1px solid var(--border);
-      padding: 9px 11px;
-      text-align: right;
-      font-family: var(--mono);
-      font-size: 12.5px;
-      color: var(--text-dim);
-      white-space: nowrap;
-    }
-    table.bw th {
-      background: var(--bg-2);
-      color: var(--text-faint);
-      font-size: 10px;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-    table.bw td:first-child, table.bw th:first-child {
-      text-align: left;
-      color: var(--text);
-    }
-    table.bw tbody tr:nth-child(odd) { background: var(--bg-1); }
-    table.bw td.hl {
-      color: var(--accent-3);
-      background: rgba(34, 211, 238, 0.07);
-    }
-    .table-note {
-      font-family: var(--mono);
-      font-size: 10.5px;
-      color: var(--text-faint);
-      margin: 0 0 20px;
-      line-height: 1.6;
-    }
-
-    /* comandi lunghi su una riga sola: meglio andare a capo che scrollare */
-    .article-body pre.wrap > code {
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    @media (max-width: 640px) {
-      .display-map { grid-template-columns: 1fr; }
-      .node-grid { grid-template-columns: 1fr; }
-      .diagram { padding: 24px 12px 14px; }
-    }
-  </style>
+  <title>Workstation remota: Tailscale, Sunshine, display virtuale e Home Assistant — Gabbro</title>
+  <meta name="description" content="Accensione via Wake-on-LAN, avvio non presidiato fino a Windows e streaming a bassa latenza con Sunshine e Moonlight su un display virtuale 16:10, via Tailscale e Home Assistant.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Workstation remota: Tailscale, Sunshine, display virtuale e Home Assistant">
+  <meta property="og:url" content="https://sergabbro.github.io/articles/remote_gaming_tailscale_vdd.html">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e63946'/%3E%3Crect x='7' y='7' width='18' height='18' rx='4' fill='%2307080a'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/article.css">
+  <link rel="stylesheet" href="../assets/css/diagrams.css">
 </head>
 <body>
 
+  <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
   <header class="navbar">
-    <a href="../index.html" class="navbar-brand">
-      <div class="nav-logo"></div>
-      <h1>Gabbro</h1>
-    </a>
-    <nav>
-      <a href="../index.html">Home</a>
-      <a href="../index.html#articoli" class="active">Articoli</a>
-    </nav>
+    <div class="wrap">
+      <a href="../index.html" class="brand" aria-label="Gabbro, home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Gabbro</span>
+        <span class="brand-role">ing. elettronico</span>
+      </a>
+      <nav class="nav-links" aria-label="Principale">
+        <a href="../index.html#articoli" aria-current="page">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="../index.html#chi-sono">Chi sono</a>
+        <a href="https://github.com/sergabbro" class="ext" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+    <div class="progress" aria-hidden="true"></div>
   </header>
 
-  <article class="article-page">
+  <main id="contenuto" class="wrap article-layout">
+    <article class="article-shell">
 
-    <div class="breadcrumb fade-up">
-      <a href="../index.html">Gabbro</a>
-      <span>/</span>
-      <a href="../index.html#articoli">articoli</a>
-      <span>/</span>
-      remote-gaming-tailscale-vdd
-    </div>
+      <nav class="breadcrumb rise" aria-label="Percorso">
+        <a href="../index.html">gabbro</a><span class="sep">/</span>
+        <a href="../index.html#articoli">articoli</a><span class="sep">/</span>
+        <span>workstation-remota</span>
+      </nav>
 
-    <header class="article-header fade-up fade-up-1">
-      <div class="article-meta">
-        <span class="article-date">2026-09-16</span>
-        <span class="tag tag-green">networking</span>
-        <span class="tag tag-cyan">windows</span>
-        <span class="tag tag-gray">tailscale</span>
-        <span class="tag tag-gray">sunshine</span>
-        <span class="tag tag-gray">wake-on-lan</span>
-        <span class="tag tag-gray">home-assistant</span>
-        <span class="tag tag-gray">mqtt</span>
-      </div>
-      <h1>Workstation in streaming: Tailscale, Sunshine, display virtuale e Home Assistant</h1>
-      <p class="lead">Come accendo da remoto una workstation dual-boot, la porto fino a Windows senza interventi manuali e la uso dal laptop con latenza da gioco, su un display virtuale nel formato del client e con i monitor di casa disattivati.</p>
-    </header>
-
-    <div class="article-body fade-up fade-up-2">
-
-      <h2>Obiettivo</h2>
-
-      <p>Ho una workstation fissa in dual-boot Fedora/Windows con GPU dedicata e due monitor 16:9, e un laptop leggero per quando sono fuori casa. L'obiettivo è usare la potenza della workstation dal laptop, anche per giocare, partendo da macchina spenta e senza nessuno in casa.</p>
-
-      <p>I requisiti, ciascuno trattato in una sezione:</p>
-
-      <ul>
-        <li>raggiungere la workstation senza IP pubblico statico e senza port forwarding obbligatorio (§1);</li>
-        <li>streaming a bassa latenza, adatto al gaming (§2);</li>
-        <li>desktop remoto in <strong>16:10</strong>, il formato del laptop, senza bande nere (§3–4);</li>
-        <li>controllo dei display e telemetria da Home Assistant (§5);</li>
-        <li>accensione da remoto e avvio fino a una macchina raggiungibile, senza interventi manuali (§6–8).</li>
-      </ul>
-
-      <div class="callout callout-info">
-        <span class="callout-icon">ℹ️</span>
-        <div class="callout-body">
-          <strong>Setup di riferimento</strong>
-          Host: workstation dual-boot Fedora + Windows 11, GPU dedicata, due monitor fisici 16:9. Client: Acer Swift Go 14 (SFG14-73-73TU), OLED 14" 2880×1800 a 90 Hz, quindi <strong>16:10</strong>. Infrastruttura: un Raspberry Pi sempre acceso con Home Assistant, che fa da nodo di risveglio e da broker MQTT.
+      <header class="article-header rise rise-1">
+        <div class="card-meta">
+          <time datetime="2026-09-16">16 settembre 2026</time><span class="sep"></span><span>20 min di lettura</span>
         </div>
-      </div>
-
-      <h2>1. Rete: Tailscale invece di WireGuard puro</h2>
-
-      <p>Sul <a href="openwrt_wireguard_proton.html">router di casa uso già WireGuard</a>. Per questo caso d'uso, però, il problema non è cifrare il traffico ma <strong>trovare l'altro capo</strong>: due nodi dietro NAT, uno dei quali cambia rete di continuo. Tailscale usa WireGuard per il trasporto e aggiunge ciò che WireGuard, per scelta progettuale, lascia fuori.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">📖</span>
-        <div class="callout-body">
-          <strong>Control plane e data plane</strong>
-          Il <em class="term">data plane</em> è il traffico: pacchetti cifrati fra due nodi. In Tailscale è WireGuard, con la stessa crittografia. Il <em class="term">control plane</em> è il coordinamento: quali peer esistono, con quali chiavi pubbliche, a quali indirizzi. WireGuard non ne ha uno, e lo si gestisce a mano nei file di configurazione. Tailscale lo centralizza su un proprio server di coordinamento. Le chiavi private restano sui dispositivi: il coordinatore sa <em>chi</em> parla con chi, non <em>cosa</em> si dicono.
+        <h1>Workstation remota: Tailscale, Sunshine, display virtuale e Home Assistant</h1>
+        <p class="lead">Come accendo da remoto una workstation dual-boot, la porto fino a Windows senza interventi manuali e la uso dal laptop con latenza da gioco, su un display virtuale nel formato del client e con i monitor di casa disattivati.</p>
+        <div class="tags">
+          <span class="tag tag-green">networking</span>
+          <span class="tag tag-cyan">windows</span>
+          <span class="tag tag-gray">tailscale</span>
+          <span class="tag tag-gray">sunshine</span>
+          <span class="tag tag-gray">wake-on-lan</span>
+          <span class="tag tag-gray">home-assistant</span>
+          <span class="tag tag-gray">mqtt</span>
         </div>
-      </div>
+      </header>
 
-      <p>In pratica, tre differenze contano:</p>
+      <div class="article-body rise rise-2">
 
-      <ol class="steps">
-        <li>
-          <strong>NAT traversal</strong>
-          WireGuard richiede un <code>Endpoint</code> raggiungibile: IP pubblico e porta UDP aperta, quindi port forward e DDNS. Tailscale scopre gli indirizzi pubblici dei nodi tramite il coordinamento e attraversa i NAT con UDP hole punching, senza porte da aprire.
-        </li>
-        <li>
-          <strong>Roaming</strong>
-          Quando il laptop cambia rete (casa, hotspot, Wi-Fi pubblica), il percorso viene rinegoziato in pochi secondi. Con WireGuard puro ogni cambio rompe l'endpoint.
-        </li>
-        <li>
-          <strong>Gestione delle chiavi</strong>
-          Un nodo si aggiunge con <code>tailscale up</code> e un login, senza scambio manuale di chiavi né file <code>.conf</code> da tenere allineati. Il login ha una scadenza, che sui nodi raggiungibili solo da remoto va disattivata (§8).
-        </li>
-      </ol>
+        <h2>Obiettivo</h2>
 
-      <h3>Connessione diretta o relay</h3>
+        <p>Ho una workstation fissa in dual-boot Fedora/Windows con GPU dedicata e due monitor 16:9, e un laptop leggero per quando sono fuori casa. L'obiettivo è usare la potenza della workstation dal laptop, anche per giocare, partendo da macchina spenta e senza nessuno in casa.</p>
 
-      <p>Tailscale tenta sempre prima una connessione <strong>diretta</strong>, peer-to-peer. Se il NAT traversal fallisce, ripiega su un <strong>relay DERP</strong>: il tunnel resta attivo e cifrato end-to-end, ma la banda disponibile crolla. Per lo streaming è la prima cosa da verificare, prima di sospettare di Sunshine.</p>
+        <p>I requisiti, ciascuno trattato in una sezione:</p>
 
-      <div class="callout callout-warning">
-        <span class="callout-icon">📖</span>
-        <div class="callout-body">
-          <strong>Relay DERP</strong>
-          <em class="term">DERP</em> (<em>Designated Encrypted Relay for Packets</em>) è la rete di relay che Tailscale mantiene per i nodi che non riescono a vedersi direttamente. Il relay inoltra pacchetti già cifrati e non possiede le chiavi, quindi non è un problema di sicurezza. È un problema di prestazioni: un hop in più e banda condivisa con gli altri utenti del relay.
-        </div>
-      </div>
+        <ul>
+          <li>raggiungere la workstation senza IP pubblico statico e senza port forwarding obbligatorio (§1);</li>
+          <li>streaming a bassa latenza, adatto al gaming (§2);</li>
+          <li>desktop remoto in <strong>16:10</strong>, il formato del laptop, senza bande nere (§3–4);</li>
+          <li>controllo dei display e telemetria da Home Assistant (§5);</li>
+          <li>accensione da remoto e avvio fino a una macchina raggiungibile, senza interventi manuali (§6–8).</li>
+        </ul>
 
-      <pre data-label="powershell / bash"><code>tailscale status
-# 100.101.102.103  workstation  utente@  windows  active; direct 93.x.x.x:41641, tx … rx …
-#                                                         ^^^^^^ deve essere "direct"
-#                                                         (relay "mil" = relay DERP di Milano)
-
-tailscale netcheck          # tipo di NAT, DERP più vicino, UPnP / NAT-PMP / PCP
-
-tailscale ping workstation
-# pong from workstation (100.101.102.103) via DERP(mil) in 48ms
-# pong from workstation (100.101.102.103) via 93.x.x.x:41641 in 14ms   &lt;- diretto</code></pre>
-
-      <p>È normale che i primi pong passino dal DERP e che la sessione diventi diretta dopo qualche secondo. Se resta su relay, la contromisura è un port forward della porta UDP <code>41641</code> verso la workstation. È un'ottimizzazione, non un requisito: senza, la VPN continua a funzionare via relay. La porta, inoltre, non espone alcun servizio: WireGuard non risponde a pacchetti non autenticati.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">
-          <strong>Isolare il lato del problema</strong>
-          La connessione diretta può fallire per colpa della rete del client: Wi-Fi pubbliche con firewall restrittivi, alcuni CG-NAT. Per capire da che parte sta il problema basta ripetere <code>tailscale status</code> da un'altra rete, per esempio l'hotspot del telefono.
-        </div>
-      </div>
-
-      <h3>Compromessi</h3>
-
-      <p><strong>Control plane di terzi.</strong> Se il coordinamento di Tailscale non è disponibile, i tunnel esistenti restano attivi ma non si possono aggiungere nodi. Chi vuole evitarlo può usare <a href="https://github.com/juanfont/headscale" target="_blank" rel="noopener">Headscale</a>, un control plane open source self-hosted compatibile con i client ufficiali.</p>
-
-      <p><strong>Prestazioni.</strong> Su Linux WireGuard gira nel kernel, Tailscale in userspace. Con gli offload UDP il divario si è ridotto molto, e Tailscale dichiara oltre 10 Gbit/s su hardware recente. Per saturare link molto veloci fra host con IP pubblico, però, WireGuard nel kernel resta avanti.</p>
-
-      <p><strong>MTU a 1280 byte</strong>, contro i circa 1420 tipici di WireGuard, per evitare la frammentazione. Per uno stream UDP significa qualche pacchetto in più per frame, con un impatto trascurabile.</p>
-
-      <p>Con due nodi dietro NAT, uno dei quali mobile, e nessun servizio da esporre, Tailscale è la scelta giusta. Fra due server con IP pubblico userei WireGuard puro.</p>
-
-      <div class="diagram">
-        <div class="tailnet">
-          <div class="node-grid">
-            <div class="node">
-              <div class="node-icon">💻</div>
-              <div class="node-name">Swift Go 14</div>
-              <span class="node-role">client Moonlight<br>rete variabile</span>
-            </div>
-            <div class="node">
-              <div class="node-icon">🖥️</div>
-              <div class="node-name">Workstation</div>
-              <span class="node-role">host Sunshine · VDD<br>HASS.Agent</span>
-            </div>
-            <div class="node">
-              <div class="node-icon">🍓</div>
-              <div class="node-name">Raspberry Pi</div>
-              <span class="node-role">Home Assistant<br>broker MQTT · 24/7</span>
-            </div>
+        <div class="callout callout-info">
+            <strong>Setup di riferimento</strong>
+            Host: workstation dual-boot Fedora + Windows 11, GPU dedicata, due monitor fisici 16:9. Client: Acer Swift Go 14 (SFG14-73-73TU), OLED 14" 2880×1800 a 90 Hz, quindi <strong>16:10</strong>. Infrastruttura: un Raspberry Pi sempre acceso con Home Assistant, che fa da nodo di risveglio e da broker MQTT.
           </div>
-          <p class="wire">◄──── WireGuard P2P diretto · UDP 41641 ────►</p>
+
+        <h2>1. Rete: Tailscale invece di WireGuard puro</h2>
+
+        <p>Sul <a href="openwrt_wireguard_proton.html">router di casa uso già WireGuard</a>. Per questo caso d'uso, però, il problema non è cifrare il traffico ma <strong>trovare l'altro capo</strong>: due nodi dietro NAT, uno dei quali cambia rete di continuo. Tailscale usa WireGuard per il trasporto e aggiunge ciò che WireGuard, per scelta progettuale, lascia fuori.</p>
+
+        <div class="callout callout-def">
+            <strong>Control plane e data plane</strong>
+            Il <em class="term">data plane</em> è il traffico: pacchetti cifrati fra due nodi. In Tailscale è WireGuard, con la stessa crittografia. Il <em class="term">control plane</em> è il coordinamento: quali peer esistono, con quali chiavi pubbliche, a quali indirizzi. WireGuard non ne ha uno, e lo si gestisce a mano nei file di configurazione. Tailscale lo centralizza su un proprio server di coordinamento. Le chiavi private restano sui dispositivi: il coordinatore sa <em>chi</em> parla con chi, non <em>cosa</em> si dicono.
+          </div>
+
+        <p>In pratica, tre differenze contano:</p>
+
+        <ol class="steps">
+          <li>
+            <strong>NAT traversal</strong>
+            WireGuard richiede un <code>Endpoint</code> raggiungibile: IP pubblico e porta UDP aperta, quindi port forward e DDNS. Tailscale scopre gli indirizzi pubblici dei nodi tramite il coordinamento e attraversa i NAT con UDP hole punching, senza porte da aprire.
+          </li>
+          <li>
+            <strong>Roaming</strong>
+            Quando il laptop cambia rete (casa, hotspot, Wi-Fi pubblica), il percorso viene rinegoziato in pochi secondi. Con WireGuard puro ogni cambio rompe l'endpoint.
+          </li>
+          <li>
+            <strong>Gestione delle chiavi</strong>
+            Un nodo si aggiunge con <code>tailscale up</code> e un login, senza scambio manuale di chiavi né file <code>.conf</code> da tenere allineati. Il login ha una scadenza, che sui nodi raggiungibili solo da remoto va disattivata (§8).
+          </li>
+        </ol>
+
+        <h3>Connessione diretta o relay</h3>
+
+        <p>Tailscale tenta sempre prima una connessione <strong>diretta</strong>, peer-to-peer. Se il NAT traversal fallisce, ripiega su un <strong>relay DERP</strong>: il tunnel resta attivo e cifrato end-to-end, ma la banda disponibile crolla. Per lo streaming è la prima cosa da verificare, prima di sospettare di Sunshine.</p>
+
+        <div class="callout callout-def">
+            <strong>Relay DERP</strong>
+            <em class="term">DERP</em> (<em>Designated Encrypted Relay for Packets</em>) è la rete di relay che Tailscale mantiene per i nodi che non riescono a vedersi direttamente. Il relay inoltra pacchetti già cifrati e non possiede le chiavi, quindi non è un problema di sicurezza. È un problema di prestazioni: un hop in più e banda condivisa con gli altri utenti del relay.
+          </div>
+
+        <pre data-label="powershell / bash"><code>tailscale status
+  # 100.101.102.103  workstation  utente@  windows  active; direct 93.x.x.x:41641, tx … rx …
+  #                                                         ^^^^^^ deve essere "direct"
+  #                                                         (relay "mil" = relay DERP di Milano)
+
+  tailscale netcheck          # tipo di NAT, DERP più vicino, UPnP / NAT-PMP / PCP
+
+  tailscale ping workstation
+  # pong from workstation (100.101.102.103) via DERP(mil) in 48ms
+  # pong from workstation (100.101.102.103) via 93.x.x.x:41641 in 14ms   &lt;- diretto</code></pre>
+
+        <p>È normale che i primi pong passino dal DERP e che la sessione diventi diretta dopo qualche secondo. Se resta su relay, la contromisura è un port forward della porta UDP <code>41641</code> verso la workstation. È un'ottimizzazione, non un requisito: senza, la VPN continua a funzionare via relay. La porta, inoltre, non espone alcun servizio: WireGuard non risponde a pacchetti non autenticati.</p>
+
+        <div class="callout callout-tip">
+            <strong>Isolare il lato del problema</strong>
+            La connessione diretta può fallire per colpa della rete del client: Wi-Fi pubbliche con firewall restrittivi, alcuni CG-NAT. Per capire da che parte sta il problema basta ripetere <code>tailscale status</code> da un'altra rete, per esempio l'hotspot del telefono.
+          </div>
+
+        <h3>Compromessi</h3>
+
+        <p><strong>Control plane di terzi.</strong> Se il coordinamento di Tailscale non è disponibile, i tunnel esistenti restano attivi ma non si possono aggiungere nodi. Chi vuole evitarlo può usare <a href="https://github.com/juanfont/headscale" target="_blank" rel="noopener">Headscale</a>, un control plane open source self-hosted compatibile con i client ufficiali.</p>
+
+        <p><strong>Prestazioni.</strong> Su Linux WireGuard gira nel kernel, Tailscale in userspace. Con gli offload UDP il divario si è ridotto molto, e Tailscale dichiara oltre 10 Gbit/s su hardware recente. Per saturare link molto veloci fra host con IP pubblico, però, WireGuard nel kernel resta avanti.</p>
+
+        <p><strong>MTU a 1280 byte</strong>, contro i circa 1420 tipici di WireGuard, per evitare la frammentazione. Per uno stream UDP significa qualche pacchetto in più per frame, con un impatto trascurabile.</p>
+
+        <p>Con due nodi dietro NAT, uno dei quali mobile, e nessun servizio da esporre, Tailscale è la scelta giusta. Fra due server con IP pubblico userei WireGuard puro.</p>
+
+        <div class="diagram">
+          <div class="tailnet">
+            <div class="node-grid">
+              <div class="node">
+                <div class="node-kind">client</div>
+                <div class="node-name">Swift Go 14</div>
+                <span class="node-role">client Moonlight<br>rete variabile</span>
+              </div>
+              <div class="node">
+                <div class="node-kind">host</div>
+                <div class="node-name">Workstation</div>
+                <span class="node-role">host Sunshine · VDD<br>HASS.Agent</span>
+              </div>
+              <div class="node">
+                <div class="node-kind">sempre acceso</div>
+                <div class="node-name">Raspberry Pi</div>
+                <span class="node-role">Home Assistant<br>broker MQTT · 24/7</span>
+              </div>
+            </div>
+            <p class="wire">◄──── WireGuard P2P diretto · UDP 41641 ────►</p>
+          </div>
+
+          <p class="drop">▼ magic packet: <b>non</b> passa dal tunnel</p>
+
+          <div class="lan-box">
+            <b>LAN di casa</b> · broadcast UDP verso la NIC integrata della workstation spenta
+          </div>
+
+          <p class="diagram-caption">
+            Tutti e tre i nodi sono nel tailnet, ma solo il Pi può svegliare<br>
+            la workstation: il magic packet deve partire <em>dentro</em> la LAN.
+          </p>
         </div>
 
-        <p class="drop">▼ magic packet: <b>non</b> passa dal tunnel</p>
+        <h2>2. Streaming: Sunshine e Moonlight</h2>
 
-        <div class="lan-box">
-          <b>LAN di casa</b> · broadcast UDP verso la NIC integrata della workstation spenta
+        <p>Sulla workstation gira <strong>Sunshine</strong>, sul laptop <strong>Moonlight</strong>: un'implementazione open source del protocollo GameStream di NVIDIA, sopravvissuta alla dismissione dell'originale. A differenza di RDP o AnyDesk, pensati per il lavoro d'ufficio, Sunshine cattura il framebuffer, lo codifica con l'encoder hardware della GPU e lo invia in UDP. Il carico sulla CPU è minimo e in LAN la latenza end-to-end resta tipicamente sotto i 10 ms. Da remoto, in connessione diretta, si aggiunge sostanzialmente la sola latenza di rete verso casa.</p>
+
+        <p>L'impostazione più importante è il <strong>codec</strong>: HEVC se la GPU lo supporta, AV1 se è supportato da entrambi i lati. A parità di bitrate la qualità è nettamente superiore a H.264, e in questo scenario la banda è la risorsa scarsa.</p>
+
+        <h3>Dimensionare la banda</h3>
+
+        <p>Lo stream va da casa verso il client, quindi il vincolo è l'<strong>upload della linea di casa</strong>, spesso un decimo del download sulle FTTC, oppure il download del client se è più basso. Questi sono i bitrate HEVC da cui parto:</p>
+
+        <div class="table-wrap">
+          <table class="bw">
+            <thead>
+              <tr>
+                <th>Risoluzione</th>
+                <th>60 Hz</th>
+                <th>90 Hz</th>
+                <th>144 Hz</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1920×1080 <span class="unit">16:9</span></td>
+                <td>15 Mbps</td>
+                <td>21 Mbps</td>
+                <td>31 Mbps</td>
+              </tr>
+              <tr>
+                <td>1920×1200 <span class="unit">16:10</span></td>
+                <td>17 Mbps</td>
+                <td class="hl">24 Mbps</td>
+                <td>35 Mbps</td>
+              </tr>
+              <tr>
+                <td>2560×1440 <span class="unit">16:9</span></td>
+                <td>27 Mbps</td>
+                <td>38 Mbps</td>
+                <td>56 Mbps</td>
+              </tr>
+              <tr>
+                <td>2560×1600 <span class="unit">16:10</span></td>
+                <td>30 Mbps</td>
+                <td>42 Mbps</td>
+                <td>62 Mbps</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <p class="diagram-caption">
-          Tutti e tre i nodi sono nel tailnet, ma solo il Pi può svegliare<br>
-          la workstation: il magic packet deve partire <em>dentro</em> la LAN.
+        <p class="table-note">
+          Evidenziata la configurazione che uso: 1920×1200 a 90 Hz.<br>
+          H.264: circa +40%. AV1: circa −20%.
         </p>
-      </div>
 
-      <h2>2. Streaming: Sunshine e Moonlight</h2>
+        <p>Sono bitrate video. Audio, correzione d'errore e header aggiungono circa il 15%, e conviene non occupare più dell'80% dell'uplink, per lasciare spazio al resto del traffico di casa:</p>
 
-      <p>Sulla workstation gira <strong>Sunshine</strong>, sul laptop <strong>Moonlight</strong>: un'implementazione open source del protocollo GameStream di NVIDIA, sopravvissuta alla dismissione dell'originale. A differenza di RDP o AnyDesk, pensati per il lavoro d'ufficio, Sunshine cattura il framebuffer, lo codifica con l'encoder hardware della GPU e lo invia in UDP. Il carico sulla CPU è minimo e in LAN la latenza end-to-end resta tipicamente sotto i 10 ms. Da remoto, in connessione diretta, si aggiunge sostanzialmente la sola latenza di rete verso casa.</p>
+        <pre data-label="regola della banda"><code>upload necessario ≈ bitrate × 1,15 / 0,8 ≈ bitrate × 1,45
 
-      <p>L'impostazione più importante è il <strong>codec</strong>: HEVC se la GPU lo supporta, AV1 se è supportato da entrambi i lati. A parità di bitrate la qualità è nettamente superiore a H.264, e in questo scenario la banda è la risorsa scarsa.</p>
+  1920×1200 @ 90 Hz  →  24 × 1,45 ≈ 35 Mbps di upload</code></pre>
 
-      <h3>Dimensionare la banda</h3>
-
-      <p>Lo stream va da casa verso il client, quindi il vincolo è l'<strong>upload della linea di casa</strong>, spesso un decimo del download sulle FTTC, oppure il download del client se è più basso. Questi sono i bitrate HEVC da cui parto:</p>
-
-      <div class="table-wrap">
-        <table class="bw">
-          <thead>
-            <tr>
-              <th>Risoluzione</th>
-              <th>60 Hz</th>
-              <th>90 Hz</th>
-              <th>144 Hz</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1920×1080 &nbsp;<span style="color:var(--text-faint)">16:9</span></td>
-              <td>15 Mbps</td>
-              <td>21 Mbps</td>
-              <td>31 Mbps</td>
-            </tr>
-            <tr>
-              <td>1920×1200 &nbsp;<span style="color:var(--text-faint)">16:10</span></td>
-              <td>17 Mbps</td>
-              <td class="hl">24 Mbps</td>
-              <td>35 Mbps</td>
-            </tr>
-            <tr>
-              <td>2560×1440 &nbsp;<span style="color:var(--text-faint)">16:9</span></td>
-              <td>27 Mbps</td>
-              <td>38 Mbps</td>
-              <td>56 Mbps</td>
-            </tr>
-            <tr>
-              <td>2560×1600 &nbsp;<span style="color:var(--text-faint)">16:10</span></td>
-              <td>30 Mbps</td>
-              <td>42 Mbps</td>
-              <td>62 Mbps</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="table-note">
-        Evidenziata la configurazione che uso: 1920×1200 a 90 Hz.<br>
-        H.264: circa +40%. AV1: circa −20%.
-      </p>
-
-      <p>Sono bitrate video. Audio, correzione d'errore e header aggiungono circa il 15%, e conviene non occupare più dell'80% dell'uplink, per lasciare spazio al resto del traffico di casa:</p>
-
-      <pre data-label="regola della banda"><code>upload necessario ≈ bitrate × 1,15 / 0,8 ≈ bitrate × 1,45
-
-1920×1200 @ 90 Hz  →  24 × 1,45 ≈ 35 Mbps di upload</code></pre>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body">
-          <strong>Il bitrate massimo non è il migliore</strong>
-          Un bitrate superiore a quello che l'uplink sostiene non aumenta la qualità: produce perdita di pacchetti, artefatti e stuttering. Conviene misurare l'upload reale e partire dalla formula. Per lo stesso motivo non trasmetto a 2880×1800: la banda cresce con il numero di pixel, cioè con il quadrato della risoluzione lineare, e su 14 pollici il guadagno visivo è marginale.
-        </div>
-      </div>
-
-      <h2>3. Aspect ratio: 16:9 contro 16:10</h2>
-
-      <p>I monitor della workstation sono 16:9, il pannello del laptop è 2880×1800, cioè 16:10. Trasmettendo il desktop così com'è si ottengono bande nere, circa il 10% del pannello, oppure un'immagine deformata. E impostare 1920×1200 sui monitor fisici non è possibile.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">📖</span>
-        <div class="callout-body">
-          <strong>EDID: perché decide il monitor</strong>
-          L'<em class="term">EDID</em> è il blocco di dati che il monitor invia alla scheda video al collegamento: modello, dimensioni fisiche e soprattutto l'elenco delle modalità supportate. Windows propone solo quelle. Un monitor 16:9 non dichiara modalità 16:10, e anche forzandone una il pannello ha comunque pixel fisici in rapporto 16:9: l'immagine verrebbe scalata.
-        </div>
-      </div>
-
-      <p>La soluzione è aggiungere un monitor che non esiste. Un <strong>Virtual Display Driver</strong> è un driver <em>indirect display</em>: Windows lo vede come un monitor collegato, con il suo EDID, ma dietro c'è solo un framebuffer in memoria. A Sunshine basta, perché cattura framebuffer e non uscite video.</p>
-
-      <p>Uso il <a href="https://github.com/VirtualDrivers/Virtual-Display-Driver" target="_blank" rel="noopener">Virtual Display Driver</a> del progetto VirtualDrivers, installato in <code>C:\VirtualDisplayDriver\</code> e configurato via XML:</p>
-
-      <pre data-label="C:\VirtualDisplayDriver\vdd_settings.xml"><code>&lt;?xml version='1.0' encoding='utf-8'?&gt;
-&lt;vdd_settings&gt;
-    &lt;monitors&gt;
-        &lt;count&gt;1&lt;/count&gt;
-    &lt;/monitors&gt;
-    &lt;gpu&gt;
-        &lt;friendlyname&gt;default&lt;/friendlyname&gt;
-    &lt;/gpu&gt;
-    &lt;global&gt;
-        &lt;!-- Frequenze replicate su TUTTE le risoluzioni sotto --&gt;
-        &lt;g_refresh_rate&gt;60&lt;/g_refresh_rate&gt;
-        &lt;g_refresh_rate&gt;90&lt;/g_refresh_rate&gt;
-        &lt;g_refresh_rate&gt;120&lt;/g_refresh_rate&gt;
-        &lt;g_refresh_rate&gt;144&lt;/g_refresh_rate&gt;
-    &lt;/global&gt;
-    &lt;resolutions&gt;
-        &lt;!-- Standard 16:9 --&gt;
-        &lt;resolution&gt;&lt;width&gt;1920&lt;/width&gt;&lt;height&gt;1080&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
-        &lt;resolution&gt;&lt;width&gt;2560&lt;/width&gt;&lt;height&gt;1440&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
-        &lt;!-- 16:10 nativi per lo Swift Go 14 --&gt;
-        &lt;resolution&gt;&lt;width&gt;1920&lt;/width&gt;&lt;height&gt;1200&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
-        &lt;resolution&gt;&lt;width&gt;2560&lt;/width&gt;&lt;height&gt;1600&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
-        &lt;resolution&gt;&lt;width&gt;2880&lt;/width&gt;&lt;height&gt;1800&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
-    &lt;/resolutions&gt;
-    &lt;options&gt;
-        &lt;HardwareCursor&gt;true&lt;/HardwareCursor&gt;
-        &lt;SDR10bit&gt;false&lt;/SDR10bit&gt;
-        &lt;HDRPlus&gt;false&lt;/HDRPlus&gt;
-        &lt;logging&gt;false&lt;/logging&gt;
-    &lt;/options&gt;
-&lt;/vdd_settings&gt;</code></pre>
-
-      <p>Tre note sulla configurazione:</p>
-
-      <ul>
-        <li>il <code>refresh_rate</code> dentro ogni risoluzione non è la frequenza di quella modalità, ma una frequenza aggiuntiva che si somma a quelle di <code>&lt;global&gt;</code>. Ogni risoluzione risulta quindi disponibile a 30, 60, 90, 120 e 144 Hz;</li>
-        <li>90 Hz è la frequenza nativa del pannello del laptop. Far coincidere la frequenza del display virtuale con quella del client evita il micro-stuttering dovuto a frequenze non multiple;</li>
-        <li>conviene elencare solo le modalità che servono: ognuna è una voce in più nell'EDID virtuale e nel menu di Windows.</li>
-      </ul>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body">
-          <strong>Ricaricare il driver dopo ogni modifica</strong>
-          L'XML viene letto all'inizializzazione del driver. Dopo una modifica va disabilitato e riabilitato il dispositivo da Gestione dispositivi, altrimenti le nuove modalità non compaiono.
-        </div>
-      </div>
-
-      <h2>4. Disattivare i monitor fisici</h2>
-
-      <p>In sessione remota i monitor di casa vanno <strong>disattivati</strong>, non solo spenti. Spenti dal pulsante restano attivi per Windows: il desktop continua a estendersi su di loro, le finestre possono aprirsi dove da remoto non le vedo, e il desktop resta visibile in casa. Serve una disattivazione a livello di sistema, così che Windows rimappi tutto sul solo display virtuale.</p>
-
-      <p>Per automatizzarla uso il modulo PowerShell <a href="https://www.powershellgallery.com/packages/DisplayConfig" target="_blank" rel="noopener">DisplayConfig</a> di MartinGC94, che espone le API CCD di Windows:</p>
-
-      <pre data-label="powershell (una volta sola)"><code>Install-Module DisplayConfig -Scope CurrentUser
-
-Get-DisplayInfo
-# elenca i display con DisplayId, Active, IsPrimary
-# nel mio caso: fisici 1 e 2, virtuale 3</code></pre>
-
-      <p>Gli stati sono due:</p>
-
-      <div class="display-map">
-        <div class="dmap-panel">
-          <div class="dmap-title"><b>local.bat</b> · a casa</div>
-          <div class="dmap-stage">
-            <div class="mon-wrap is-primary">
-              <div class="mon mon-169 mon-on">1</div>
-              <span class="mon-label">fisico · 16:9<br><b>primario</b></span>
-            </div>
-            <div class="mon-wrap">
-              <div class="mon mon-169 mon-on">2</div>
-              <span class="mon-label">fisico · 16:9<br>&nbsp;</span>
-            </div>
-            <div class="mon-wrap">
-              <div class="mon mon-1610 mon-off">3</div>
-              <span class="mon-label">VDD<br>disattivato</span>
-            </div>
+        <div class="callout callout-warn">
+            <strong>Il bitrate massimo non è il migliore</strong>
+            Un bitrate superiore a quello che l'uplink sostiene non aumenta la qualità: produce perdita di pacchetti, artefatti e stuttering. Conviene misurare l'upload reale e partire dalla formula. Per lo stesso motivo non trasmetto a 2880×1800: la banda cresce con il numero di pixel, cioè con il quadrato della risoluzione lineare, e su 14 pollici il guadagno visivo è marginale.
           </div>
-          <p class="dmap-cmd">Enable 1,2 → primary 1 → Disable 3</p>
-        </div>
 
-        <div class="dmap-panel">
-          <div class="dmap-title"><b>remote.bat</b> · da remoto</div>
-          <div class="dmap-stage">
-            <div class="mon-wrap">
-              <div class="mon mon-169 mon-off">1</div>
-              <span class="mon-label">fisico<br>disattivato</span>
-            </div>
-            <div class="mon-wrap">
-              <div class="mon mon-169 mon-off">2</div>
-              <span class="mon-label">fisico<br>disattivato</span>
-            </div>
-            <div class="mon-wrap is-primary">
-              <div class="mon mon-1610 mon-active">3</div>
-              <span class="mon-label">VDD · 16:10<br><b>primario</b></span>
-            </div>
+        <h2>3. Aspect ratio: 16:9 contro 16:10</h2>
+
+        <p>I monitor della workstation sono 16:9, il pannello del laptop è 2880×1800, cioè 16:10. Trasmettendo il desktop così com'è si ottengono bande nere, circa il 10% del pannello, oppure un'immagine deformata. E impostare 1920×1200 sui monitor fisici non è possibile.</p>
+
+        <div class="callout callout-def">
+            <strong>EDID: perché decide il monitor</strong>
+            L'<em class="term">EDID</em> è il blocco di dati che il monitor invia alla scheda video al collegamento: modello, dimensioni fisiche e soprattutto l'elenco delle modalità supportate. Windows propone solo quelle. Un monitor 16:9 non dichiara modalità 16:10, e anche forzandone una il pannello ha comunque pixel fisici in rapporto 16:9: l'immagine verrebbe scalata.
           </div>
-          <p class="dmap-cmd">Enable 3 → primary 3 → Disable 1,2</p>
+
+        <p>La soluzione è aggiungere un monitor che non esiste. Un <strong>Virtual Display Driver</strong> è un driver <em>indirect display</em>: Windows lo vede come un monitor collegato, con il suo EDID, ma dietro c'è solo un framebuffer in memoria. A Sunshine basta, perché cattura framebuffer e non uscite video.</p>
+
+        <p>Uso il <a href="https://github.com/VirtualDrivers/Virtual-Display-Driver" target="_blank" rel="noopener">Virtual Display Driver</a> del progetto VirtualDrivers, installato in <code>C:\VirtualDisplayDriver\</code> e configurato via XML:</p>
+
+        <pre data-label="C:\VirtualDisplayDriver\vdd_settings.xml"><code>&lt;?xml version='1.0' encoding='utf-8'?&gt;
+  &lt;vdd_settings&gt;
+      &lt;monitors&gt;
+          &lt;count&gt;1&lt;/count&gt;
+      &lt;/monitors&gt;
+      &lt;gpu&gt;
+          &lt;friendlyname&gt;default&lt;/friendlyname&gt;
+      &lt;/gpu&gt;
+      &lt;global&gt;
+          &lt;!-- Frequenze replicate su TUTTE le risoluzioni sotto --&gt;
+          &lt;g_refresh_rate&gt;60&lt;/g_refresh_rate&gt;
+          &lt;g_refresh_rate&gt;90&lt;/g_refresh_rate&gt;
+          &lt;g_refresh_rate&gt;120&lt;/g_refresh_rate&gt;
+          &lt;g_refresh_rate&gt;144&lt;/g_refresh_rate&gt;
+      &lt;/global&gt;
+      &lt;resolutions&gt;
+          &lt;!-- Standard 16:9 --&gt;
+          &lt;resolution&gt;&lt;width&gt;1920&lt;/width&gt;&lt;height&gt;1080&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+          &lt;resolution&gt;&lt;width&gt;2560&lt;/width&gt;&lt;height&gt;1440&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+          &lt;!-- 16:10 nativi per lo Swift Go 14 --&gt;
+          &lt;resolution&gt;&lt;width&gt;1920&lt;/width&gt;&lt;height&gt;1200&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+          &lt;resolution&gt;&lt;width&gt;2560&lt;/width&gt;&lt;height&gt;1600&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+          &lt;resolution&gt;&lt;width&gt;2880&lt;/width&gt;&lt;height&gt;1800&lt;/height&gt;&lt;refresh_rate&gt;30&lt;/refresh_rate&gt;&lt;/resolution&gt;
+      &lt;/resolutions&gt;
+      &lt;options&gt;
+          &lt;HardwareCursor&gt;true&lt;/HardwareCursor&gt;
+          &lt;SDR10bit&gt;false&lt;/SDR10bit&gt;
+          &lt;HDRPlus&gt;false&lt;/HDRPlus&gt;
+          &lt;logging&gt;false&lt;/logging&gt;
+      &lt;/options&gt;
+  &lt;/vdd_settings&gt;</code></pre>
+
+        <p>Tre note sulla configurazione:</p>
+
+        <ul>
+          <li>il <code>refresh_rate</code> dentro ogni risoluzione non è la frequenza di quella modalità, ma una frequenza aggiuntiva che si somma a quelle di <code>&lt;global&gt;</code>. Ogni risoluzione risulta quindi disponibile a 30, 60, 90, 120 e 144 Hz;</li>
+          <li>90 Hz è la frequenza nativa del pannello del laptop. Far coincidere la frequenza del display virtuale con quella del client evita il micro-stuttering dovuto a frequenze non multiple;</li>
+          <li>conviene elencare solo le modalità che servono: ognuna è una voce in più nell'EDID virtuale e nel menu di Windows.</li>
+        </ul>
+
+        <div class="callout callout-warn">
+            <strong>Ricaricare il driver dopo ogni modifica</strong>
+            L'XML viene letto all'inizializzazione del driver. Dopo una modifica va disabilitato e riabilitato il dispositivo da Gestione dispositivi, altrimenti le nuove modalità non compaiono.
+          </div>
+
+        <h2>4. Disattivare i monitor fisici</h2>
+
+        <p>In sessione remota i monitor di casa vanno <strong>disattivati</strong>, non solo spenti. Spenti dal pulsante restano attivi per Windows: il desktop continua a estendersi su di loro, le finestre possono aprirsi dove da remoto non le vedo, e il desktop resta visibile in casa. Serve una disattivazione a livello di sistema, così che Windows rimappi tutto sul solo display virtuale.</p>
+
+        <p>Per automatizzarla uso il modulo PowerShell <a href="https://www.powershellgallery.com/packages/DisplayConfig" target="_blank" rel="noopener">DisplayConfig</a> di MartinGC94, che espone le API CCD di Windows:</p>
+
+        <pre data-label="powershell (una volta sola)"><code>Install-Module DisplayConfig -Scope CurrentUser
+
+  Get-DisplayInfo
+  # elenca i display con DisplayId, Active, IsPrimary
+  # nel mio caso: fisici 1 e 2, virtuale 3</code></pre>
+
+        <p>Gli stati sono due:</p>
+
+        <div class="display-map">
+          <div class="dmap-panel">
+            <div class="dmap-title"><b>local.bat</b> · a casa</div>
+            <div class="dmap-stage">
+              <div class="mon-wrap is-primary">
+                <div class="mon mon-169 mon-on">1</div>
+                <span class="mon-label">fisico · 16:9<br><b>primario</b></span>
+              </div>
+              <div class="mon-wrap">
+                <div class="mon mon-169 mon-on">2</div>
+                <span class="mon-label">fisico · 16:9<br>&nbsp;</span>
+              </div>
+              <div class="mon-wrap">
+                <div class="mon mon-1610 mon-off">3</div>
+                <span class="mon-label">VDD<br>disattivato</span>
+              </div>
+            </div>
+            <p class="dmap-cmd">Enable 1,2 → primary 1 → Disable 3</p>
+          </div>
+
+          <div class="dmap-panel">
+            <div class="dmap-title"><b>remote.bat</b> · da remoto</div>
+            <div class="dmap-stage">
+              <div class="mon-wrap">
+                <div class="mon mon-169 mon-off">1</div>
+                <span class="mon-label">fisico<br>disattivato</span>
+              </div>
+              <div class="mon-wrap">
+                <div class="mon mon-169 mon-off">2</div>
+                <span class="mon-label">fisico<br>disattivato</span>
+              </div>
+              <div class="mon-wrap is-primary">
+                <div class="mon mon-1610 mon-active">3</div>
+                <span class="mon-label">VDD · 16:10<br><b>primario</b></span>
+              </div>
+            </div>
+            <p class="dmap-cmd">Enable 3 → primary 3 → Disable 1,2</p>
+          </div>
         </div>
+
+        <p>Il display virtuale sta a destra dei due fisici. Posizionato in mezzo, con tutti e tre attivi, costringerebbe il puntatore ad attraversare uno schermo invisibile per passare da un monitor fisico all'altro.</p>
+
+        <pre data-label="remote.bat" class="wrap"><code>@echo off
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Import-Module DisplayConfig; Enable-Display -DisplayId 3; Set-DisplayPrimary -DisplayId 3; Disable-Display -DisplayId 1,2"
+  exit</code></pre>
+
+        <pre data-label="local.bat" class="wrap"><code>@echo off
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Import-Module DisplayConfig; Enable-Display -DisplayId 1,2; Start-Sleep -Seconds 2; Set-DisplayPrimary -DisplayId 1; Disable-Display -DisplayId 3"
+  exit</code></pre>
+
+        <p><strong>L'ordine delle operazioni è vincolante</strong>: attivare il display di destinazione, renderlo primario, solo dopo disattivare gli altri. Invertendo la sequenza Windows si troverebbe per un istante senza display attivi, e potrebbe rifiutare l'operazione o lasciare la sessione remota senza schermo.</p>
+
+        <p>Lo <code>Start-Sleep</code> serve solo in <code>local.bat</code>. Riattivare un monitor fisico richiede l'handshake sul cavo e la lettura dell'EDID, qualche centinaio di millisecondi, e senza attesa <code>Set-DisplayPrimary</code> può fallire. Il display virtuale, invece, è disponibile immediatamente.</p>
+
+        <div class="callout callout-warn">
+            <strong>Gli ID dei display non sono stabili</strong>
+            Cambiano se si scollega un monitor, si cambia porta sulla GPU o si reinstalla il VDD. Se uno script si comporta in modo inatteso, il primo controllo è <code>Get-DisplayInfo</code>. Un'alternativa più robusta: salvare l'intero layout con <code>Get-DisplayConfig</code> ed <code>Export-Clixml</code> e riapplicarlo con <code>Use-DisplayConfig</code>, senza dipendere dagli ID.
+          </div>
+
+        <p>In una prima versione lanciavo i due script a mano da due collegamenti sul desktop, con l'ovvio rischio di dimenticarmene. Oggi sono comandi di Home Assistant.</p>
+
+        <h2>5. Controllo da Home Assistant: HASS.Agent e MQTT</h2>
+
+        <p><strong>HASS.Agent</strong> è un'applicazione per Windows che integra il PC in Home Assistant. Espone <strong>comandi</strong>, cioè entità che eseguono azioni sul PC, e pubblica <strong>sensori</strong>: carico della CPU, memoria, stato della sessione, temperature. Il trasporto è MQTT.</p>
+
+        <div class="callout callout-def">
+            <strong>MQTT</strong>
+            <em class="term">MQTT</em> è un protocollo publish/subscribe leggero, nato per la telemetria. Al centro c'è un <em class="term">broker</em> che riceve i messaggi e li distribuisce. I client non comunicano direttamente: il PC <em>pubblica</em> un valore su un <em class="term">topic</em>, per esempio <code>homeassistant/sensor/…</code>, e Home Assistant, <em>iscritto</em> a quel topic, lo riceve. Per i comandi il verso si inverte. Home Assistant non deve interrogare il PC, e grazie alla <em>discovery</em> le entità pubblicate da HASS.Agent compaiono senza configurazione YAML.
+          </div>
+
+        <ol class="steps">
+          <li>
+            <strong>Broker</strong>
+            Mosquitto gira sul Pi accanto a Home Assistant, con l'integrazione MQTT collegata. Per la workstation conviene un utente dedicato. Il traffico MQTT resta in LAN e non ha bisogno di passare dal tailnet.
+          </li>
+          <li>
+            <strong>HASS.Agent</strong>
+            Il progetto mantenuto è il fork della community, <a href="https://github.com/hass-agent/HASS.Agent" target="_blank" rel="noopener">hass-agent/HASS.Agent</a>: l'originale di LAB02 Research è fermo da tempo. Nella configurazione iniziale si indicano indirizzo e credenziali del broker, con un test di connessione.
+          </li>
+          <li>
+            <strong>Comandi</strong>
+            I due <code>.bat</code> diventano due <code>CustomCommand</code> con percorso assoluto, esposti come <code>button</code>: sono azioni puntuali, non interruttori con uno stato.
+          </li>
+          <li>
+            <strong>Discovery</strong>
+            In Home Assistant le entità compaiono sotto l'integrazione MQTT, raggruppate in un dispositivo con il nome del PC, e si aggiungono alla dashboard accanto al comando di accensione (§6).
+          </li>
+        </ol>
+
+        <pre data-label="HASS.Agent → Commands → Add New"><code>Type:         CustomCommand
+  Name:         monitor_remoto            # senza spazi: diventa l'entity id
+  Command:      C:\Scripts\remote.bat     # percorso assoluto
+  Entity type:  button
+
+  Type:         CustomCommand
+  Name:         monitor_locale
+  Command:      C:\Scripts\local.bat
+  Entity type:  button</code></pre>
+
+        <p>I comandi integrati <code>MonitorSleep</code> e <code>MonitorWake</code> non sono un'alternativa: mettono i monitor in standby, come il pulsante di spegnimento, e per Windows restano attivi (§4).</p>
+
+        <div class="callout callout-warn">
+            <strong>I comandi sui display richiedono la sessione utente</strong>
+            HASS.Agent ha due componenti. L'<strong>app</strong> gira nella sessione dell'utente connesso. Il <strong>Satellite Service</strong> è un servizio di Windows e funziona anche senza utenti connessi, utile per avere i sensori già dalla schermata di accesso. La configurazione dei display però appartiene alla sessione utente, mentre un servizio gira nella sessione 0, che non ha un desktop. I due comandi vanno quindi definiti nell'app, e sono disponibili solo dopo l'accesso.
+          </div>
+
+        <h3>Sensori e temperature</h3>
+
+        <p>HASS.Agent include molti sensori pronti: carico della CPU, memoria, dischi, ultimo avvio, stato della sessione, finestra attiva. In Home Assistant diventano entità ordinarie, con storico e utilizzabili nelle automazioni. Le temperature richiedono un passaggio in più.</p>
+
+        <div class="callout callout-warn">
+            <strong>Il sensore di temperatura GPU restituisce 0</strong>
+            Per la CPU un sensore di temperatura nativo non è mai esistito. Quello della GPU nelle release recenti restituisce sempre <code>0</code>: gli sviluppatori hanno rimosso per motivi di sicurezza la libreria LibreHardwareMonitor che leggeva l'hardware, e il sensore è rimasto solo per compatibilità. La soluzione documentata è eseguire <strong>LibreHardwareMonitor</strong> separatamente e leggerne i valori via WMI con un sensore <code>WmiQuery</code>.
+          </div>
+
+        <pre data-label="HASS.Agent → Sensors → WmiQuery" class="wrap"><code>Scope:  \\.\ROOT\LibreHardwareMonitor
+
+  # GPU
+  SELECT value FROM Sensor WHERE Name LIKE "%GPU Core%" AND SensorType = "Temperature"
+
+  # CPU Intel
+  SELECT value FROM Sensor WHERE Name LIKE "%CPU Core%" AND SensorType = "Temperature"
+
+  # CPU AMD
+  SELECT value FROM Sensor WHERE Name LIKE "%CPU Package%" AND SensorType = "Temperature"</code></pre>
+
+        <p>LibreHardwareMonitor deve essere in esecuzione, perché è lui a pubblicare il namespace WMI, e deve avere privilegi di amministratore, altrimenti buona parte dei sensori non è leggibile. Il pulsante <em>Test WMI Query</em> di HASS.Agent permette di verificare la query prima di salvarla.</p>
+
+        <h2>6. Accensione da remoto: Wake-on-LAN</h2>
+
+        <p>Tenere accesa 24/7 una workstation con GPU dedicata per usarla qualche sera a settimana non ha senso, né per i consumi né per il rumore. Serve il <strong>Wake-on-LAN</strong>, ed è qui che il Raspberry Pi diventa indispensabile.</p>
+
+        <div class="callout callout-def">
+            <strong>Perché il WoL non può passare da Tailscale</strong>
+            Il <em class="term">magic packet</em> è un pacchetto UDP broadcast: sei byte <code>FF</code> seguiti da sedici ripetizioni del MAC della scheda da svegliare. A PC spento lo riceve la <strong>scheda di rete</strong>, alimentata dalla linea di standby a 5 V. Tailscale invece è un servizio del sistema operativo: a PC spento non gira, e l'indirizzo <code>100.x.y.z</code> della workstation non esiste nel tailnet. Il pacchetto deve quindi partire da un dispositivo già acceso <em>dentro</em> la LAN.
+          </div>
+
+        <ol class="steps">
+          <li>
+            <strong>Dal telefono apro Home Assistant</strong>
+            Telefono e Pi sono entrambi nel tailnet: nessuna porta aperta sul router, nessun cloud intermedio.
+          </li>
+          <li>
+            <strong>Home Assistant invia il magic packet</strong>
+            Con l'integrazione nativa Wake on LAN, configurata con il MAC della workstation e l'indirizzo di broadcast. In dashboard è un bottone.
+          </li>
+          <li>
+            <strong>Il pacchetto parte dalla LAN</strong>
+            Il Pi è fisicamente sulla rete di casa: il broadcast raggiunge la NIC della workstation, che si accende.
+          </li>
+          <li>
+            <strong>Avvio in circa quaranta secondi</strong>
+            POST, GRUB che sceglie Windows (§7), servizi Sunshine e Tailscale, che rientra nel tailnet senza attendere un accesso (§8).
+          </li>
+        </ol>
+
+        <h3>Verificare l'avvio</h3>
+
+        <p>Per sapere se l'accensione è andata a buon fine uso l'integrazione <strong>Ping (ICMP)</strong> di Home Assistant verso l'IP LAN della workstation: un binary sensor visibile accanto al bottone di accensione. Nelle versioni recenti si configura dall'interfaccia grafica, e l'intervallo di aggiornamento predefinito è adeguato allo scopo.</p>
+
+        <pre data-label="Home Assistant"><code>Impostazioni → Dispositivi e servizi → Aggiungi integrazione → Ping (ICMP)
+  Host: 192.168.1.50        # IP LAN della workstation</code></pre>
+
+        <p>Il sensore ha valore diagnostico: separa un magic packet non arrivato (ping assente) da una macchina accesa ma non raggiungibile via tailnet o con Sunshine fermo (ping presente). Sono guasti diversi, con cause diverse.</p>
+
+        <h3>WoL e NIC PCIe</h3>
+
+        <p>Il WoL funzionava in modo affidabile fino alla prima interruzione di corrente: un micro-blackout, la ciabatta staccata per pulire. Da quel momento smetteva di funzionare, senza alcun errore visibile.</p>
+
+        <p>Il cavo era collegato a una <strong>NIC PCIe aggiuntiva</strong>. Dopo una perdita completa di alimentazione la scheda ripartiva con il WoL disarmato, e nessuno lo riarmava perché il sistema operativo non si avviava. Le impostazioni del BIOS (AC Recovery, opzioni ACPI, power management PCIe, Deep Sleep) non hanno risolto in modo affidabile: il comportamento dipende da come la scheda madre alimenta e gestisce lo slot in standby, e su questo non c'è controllo.</p>
+
+        <p>La soluzione è stata spostare il cavo sulla <strong>NIC integrata</strong>. Le NIC on-board sono gestite dal firmware della scheda madre insieme all'ACPI della piattaforma e mantengono il WoL anche dopo un blackout. Da allora non ho più avuto risvegli mancati.</p>
+
+        <div class="callout callout-tip">
+            <strong>Il test significativo</strong>
+            Spegnere e riaccendere da remoto non basta. Il test utile è: spegnere il PC, <strong>togliere alimentazione</strong> per un minuto, ridarla e solo dopo inviare il magic packet. In Windows vanno inoltre verificati "Consenti al dispositivo di riattivare il computer" nelle proprietà della scheda di rete e la disattivazione dell'<em>Avvio rapido</em>, che non è un vero spegnimento e su molte schede interferisce con il WoL.
+          </div>
+
+        <h2>7. GRUB: Windows come voce predefinita</h2>
+
+        <p>Con il dual-boot, dopo il WoL GRUB resta fermo sul menu in attesa di una scelta: macchina accesa, consumi, e Sunshine mai avviato. Windows va impostato come voce predefinita. Da Fedora, come root:</p>
+
+        <pre data-label="root@fedora"><code># 1. titolo esatto della voce Windows
+  grep -i 'menuentry' /boot/grub2/grub.cfg | grep -i windows
+
+  # 2. impostarla come default persistente
+  grub2-set-default "Windows Boot Manager (su /dev/nvme0n1p1)"
+
+  # 3. verifica
+  grub2-editenv list</code></pre>
+
+        <p>Se la voce Windows non compare, è perché Fedora disabilita <code>os-prober</code> per impostazione predefinita. Va abilitato in <code>/etc/default/grub</code>:</p>
+
+        <pre data-label="/etc/default/grub"><code>GRUB_DISABLE_OS_PROBER=false
+  GRUB_DEFAULT=saved
+  GRUB_TIMEOUT=5</code></pre>
+
+        <p>e va rigenerata la configurazione:</p>
+
+        <pre data-label="root@fedora"><code>grub2-mkconfig -o /boot/grub2/grub.cfg</code></pre>
+
+        <p>Il timeout di 5 secondi mi lascia il tempo di scegliere Fedora quando sono davanti al PC, e su un avvio di circa quaranta secondi pesa poco.</p>
+
+        <div class="callout callout-tip">
+            <strong>Riavviare in Fedora una sola volta: <code>grub2-reboot</code></strong>
+            Con Windows predefinito, anche un riavvio lanciato da Fedora, per esempio dopo un aggiornamento del kernel, finisce in Windows. <code>grub2-reboot</code> imposta una voce solo per l'avvio successivo, poi torna in vigore il default salvato: <code>grub2-reboot 0</code> riavvia una volta nella prima voce del menu, cioè il kernel Fedora più recente.
+          </div>
+
+        <h2>8. Tailscale senza accesso: unattended mode e scadenza delle chiavi</h2>
+
+        <p>Con WoL e GRUB a posto la catena sembrava completa. Il ping in Home Assistant diventava verde, ma Moonlight non trovava l'host: la workstation era accesa e raggiungibile in LAN, ma assente dal tailnet. Il client Tailscale era in stato <code>NeedsLogin</code>.</p>
+
+        <div class="callout callout-def">
+            <strong>NeedsLogin</strong>
+            <em class="term">NeedsLogin</em> è uno degli stati del servizio Tailscale, visibile nel campo <code>BackendState</code> di <code>tailscale status --json</code>. Indica che il servizio è attivo ma non ha un'identità valida con cui presentarsi al control plane: l'indirizzo <code>100.x.y.z</code> non risponde e per gli altri nodi la macchina è offline. Le cause tipiche sono due: nessun profilo da caricare, oppure chiave del nodo scaduta.
+          </div>
+
+        <p>Nel mio caso era la prima. Su Windows, per impostazione predefinita, Tailscale lavora per conto dell'utente connesso: il servizio parte all'avvio, ma carica il profilo dell'utente che ha effettuato l'accesso e si disconnette al logout. All'avvio, senza utenti connessi, non ha un profilo da caricare.</p>
+
+        <p>Il risultato è uno stallo. Sunshine gira come servizio e potrebbe trasmettere anche la schermata di accesso di Windows, ma per raggiungerlo serve Tailscale, che a sua volta attende un accesso. Da remoto non c'è modo di uscirne.</p>
+
+        <p>La soluzione è la modalità <strong>Run unattended</strong>: il profilo non è più legato alla sessione, il servizio si connette all'avvio e resta connesso anche dopo il logout. Si attiva dall'icona nell'area di notifica oppure da riga di comando:</p>
+
+        <pre data-label="tray di Tailscale"><code>tasto destro sull'icona → Preferences → Run unattended</code></pre>
+
+        <pre data-label="powershell (amministratore)"><code>tailscale up --unattended
+  # "tailscale up" non accetta modifiche parziali: se in passato sono stati usati
+  # altri flag vanno ripetuti tutti. L'errore mostra il comando completo.</code></pre>
+
+        <div class="callout callout-tip">
+            <strong>Il test significativo, di nuovo</strong>
+            Riavviare la workstation <strong>senza effettuare l'accesso</strong>. Dal laptop, <code>tailscale status</code> deve mostrarla online, e Moonlight deve trasmettere la schermata di accesso di Windows. Se è così, la catena regge anche senza nessuno davanti al PC.
+          </div>
+
+        <p>Il compromesso: la workstation resta nel tailnet con la mia identità anche senza nessuno davanti, e chiunque effettui l'accesso su quel PC usa il mio nodo. Su una macchina personale è accettabile. Su un PC condiviso è preferibile registrarlo con un <em>tag</em>, come nodo di servizio non associato a un utente.</p>
+
+        <h3>Scadenza delle chiavi</h3>
+
+        <p>Allo stesso stato si arriva anche per un'altra via. La chiave di ogni nodo scade, per impostazione predefinita, dopo <strong>180 giorni</strong>, e a quel punto il nodo richiede un nuovo login. Su una macchina raggiungibile solo via Tailscale l'effetto è lo stesso stallo, a distanza di mesi.</p>
+
+        <p>Per i nodi che non devono mai cadere, la scadenza si disattiva dalla console di amministrazione: <strong>Machines</strong> → menu della macchina → <strong>Disable key expiry</strong>. Va disattivata sulla workstation e sul Pi, da cui dipende l'accensione. La contropartita è che, se un dispositivo viene rubato, la sua chiave resta valida finché non lo si rimuove dalla console.</p>
+
+        <div class="callout callout-tip">
+            <strong>Diagnosi rapida</strong>
+            Nodo assente dal tailnet dopo un riavvio: manca l'unattended mode. Nodo assente all'improvviso dopo mesi di funzionamento: chiave scaduta, segnalata nella console di amministrazione.
+          </div>
+
+        <h2>Sequenza completa</h2>
+
+        <ol class="steps">
+          <li>
+            <strong>Accensione</strong>
+            Da Home Assistant invio il Wake-on-LAN: il Pi trasmette il magic packet, la NIC integrata accende la workstation.
+          </li>
+          <li>
+            <strong>Verifica</strong>
+            Il sensore ping diventa verde entro un minuto. Se resta rosso, il problema è nel risveglio, non nello streaming.
+          </li>
+          <li>
+            <strong>Boot</strong>
+            GRUB avvia Windows dopo 5 secondi di timeout.
+          </li>
+          <li>
+            <strong>Rete</strong>
+            In unattended mode Tailscale rientra nel tailnet prima di qualsiasi accesso.
+          </li>
+          <li>
+            <strong>Display</strong>
+            Apro Moonlight e premo "monitor remoto" in Home Assistant: HASS.Agent esegue <code>remote.bat</code>, i monitor fisici si disattivano e il desktop passa sul display virtuale 16:10.
+          </li>
+          <li>
+            <strong>Sessione</strong>
+            1920×1200 a 90 Hz, HEVC, circa 24 Mbps.
+          </li>
+        </ol>
+
+        <h2>Limiti e sviluppi</h2>
+
+        <p><strong>Comandi non legati allo stream.</strong> I display si cambiano con un bottone, ma resta un'azione manuale. Sunshine prevede i <strong>Command Preparations</strong>, con un comando <em>Do</em> eseguito all'apertura della sessione e uno <em>Undo</em> alla chiusura: con <code>remote.bat</code> in Do e <code>local.bat</code> in Undo il cambio diventerebbe automatico. Anche qui servono percorsi assoluti.</p>
+
+        <p><strong>Nessuno spegnimento automatico.</strong> HASS.Agent ha già un comando <code>Shutdown</code> integrato. Manca un'automazione in Home Assistant che lo invochi dopo N minuti senza sessioni Moonlight attive.</p>
+
+        <p><strong>Nessuna ACL.</strong> Nel tailnet, per impostazione predefinita, tutti i nodi comunicano con tutti. Con tre dispositivi personali va bene; aggiungendo dispositivi meno affidabili o condividendo un nodo servirebbero ACL che limitino il laptop alle sole porte di Sunshine.</p>
+
+        <div class="callout callout-ok">
+            <strong>Risultato</strong>
+            Una workstation normalmente spenta, che si accende da un bottone sul telefono, arriva da sola a Windows, rientra nel tailnet senza attendere un accesso e presenta un display virtuale nel formato esatto del laptop, con i monitor di casa disattivati. Nessuna porta obbligatoria sul router, nessun IP pubblico, nessun servizio esposto. Il problema più costoso da diagnosticare non è stato software: è stata la scheda di rete su cui era collegato il cavo.
+          </div>
+
+        <h2>Riferimenti</h2>
+
+        <ul>
+          <li><a href="https://tailscale.com/compare/wireguard" target="_blank" rel="noopener">Tailscale — confronto con WireGuard</a></li>
+          <li><a href="https://tailscale.com/blog/how-nat-traversal-works" target="_blank" rel="noopener">How NAT traversal works</a></li>
+          <li><a href="https://tailscale.com/docs/how-to/run-unattended" target="_blank" rel="noopener">Tailscale — Run unattended</a></li>
+          <li><a href="https://tailscale.com/docs/features/access-control/key-expiry" target="_blank" rel="noopener">Tailscale — Key expiry</a></li>
+          <li><a href="https://github.com/juanfont/headscale" target="_blank" rel="noopener">Headscale</a> — control plane self-hosted</li>
+          <li><a href="https://github.com/LizardByte/Sunshine" target="_blank" rel="noopener">Sunshine</a> e <a href="https://moonlight-stream.org/" target="_blank" rel="noopener">Moonlight</a></li>
+          <li><a href="https://github.com/VirtualDrivers/Virtual-Display-Driver" target="_blank" rel="noopener">Virtual Display Driver</a></li>
+          <li><a href="https://github.com/MartinGC94/DisplayConfig" target="_blank" rel="noopener">DisplayConfig</a> — modulo PowerShell per le API CCD</li>
+          <li><a href="https://github.com/hass-agent/HASS.Agent" target="_blank" rel="noopener">HASS.Agent</a> — fork mantenuto dalla community</li>
+          <li><a href="https://hassagent.readthedocs.io/en/latest/wmi-examples/" target="_blank" rel="noopener">HASS.Agent — esempi di query WMI</a></li>
+          <li><a href="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor" target="_blank" rel="noopener">LibreHardwareMonitor</a></li>
+          <li><a href="https://www.home-assistant.io/integrations/ping/" target="_blank" rel="noopener">Home Assistant — Ping (ICMP)</a></li>
+        </ul>
+
       </div>
 
-      <p>Il display virtuale sta a destra dei due fisici. Posizionato in mezzo, con tutti e tre attivi, costringerebbe il puntatore ad attraversare uno schermo invisibile per passare da un monitor fisico all'altro.</p>
-
-      <pre data-label="remote.bat" class="wrap"><code>@echo off
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Import-Module DisplayConfig; Enable-Display -DisplayId 3; Set-DisplayPrimary -DisplayId 3; Disable-Display -DisplayId 1,2"
-exit</code></pre>
-
-      <pre data-label="local.bat" class="wrap"><code>@echo off
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Import-Module DisplayConfig; Enable-Display -DisplayId 1,2; Start-Sleep -Seconds 2; Set-DisplayPrimary -DisplayId 1; Disable-Display -DisplayId 3"
-exit</code></pre>
-
-      <p><strong>L'ordine delle operazioni è vincolante</strong>: attivare il display di destinazione, renderlo primario, solo dopo disattivare gli altri. Invertendo la sequenza Windows si troverebbe per un istante senza display attivi, e potrebbe rifiutare l'operazione o lasciare la sessione remota senza schermo.</p>
-
-      <p>Lo <code>Start-Sleep</code> serve solo in <code>local.bat</code>. Riattivare un monitor fisico richiede l'handshake sul cavo e la lettura dell'EDID, qualche centinaio di millisecondi, e senza attesa <code>Set-DisplayPrimary</code> può fallire. Il display virtuale, invece, è disponibile immediatamente.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body">
-          <strong>Gli ID dei display non sono stabili</strong>
-          Cambiano se si scollega un monitor, si cambia porta sulla GPU o si reinstalla il VDD. Se uno script si comporta in modo inatteso, il primo controllo è <code>Get-DisplayInfo</code>. Un'alternativa più robusta: salvare l'intero layout con <code>Get-DisplayConfig</code> ed <code>Export-Clixml</code> e riapplicarlo con <code>Use-DisplayConfig</code>, senza dipendere dagli ID.
-        </div>
-      </div>
-
-      <p>In una prima versione lanciavo i due script a mano da due collegamenti sul desktop, con l'ovvio rischio di dimenticarmene. Oggi sono comandi di Home Assistant.</p>
-
-      <h2>5. Controllo da Home Assistant: HASS.Agent e MQTT</h2>
-
-      <p><strong>HASS.Agent</strong> è un'applicazione per Windows che integra il PC in Home Assistant. Espone <strong>comandi</strong>, cioè entità che eseguono azioni sul PC, e pubblica <strong>sensori</strong>: carico della CPU, memoria, stato della sessione, temperature. Il trasporto è MQTT.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">📖</span>
-        <div class="callout-body">
-          <strong>MQTT</strong>
-          <em class="term">MQTT</em> è un protocollo publish/subscribe leggero, nato per la telemetria. Al centro c'è un <em class="term">broker</em> che riceve i messaggi e li distribuisce. I client non comunicano direttamente: il PC <em>pubblica</em> un valore su un <em class="term">topic</em>, per esempio <code>homeassistant/sensor/…</code>, e Home Assistant, <em>iscritto</em> a quel topic, lo riceve. Per i comandi il verso si inverte. Home Assistant non deve interrogare il PC, e grazie alla <em>discovery</em> le entità pubblicate da HASS.Agent compaiono senza configurazione YAML.
-        </div>
-      </div>
-
-      <ol class="steps">
-        <li>
-          <strong>Broker</strong>
-          Mosquitto gira sul Pi accanto a Home Assistant, con l'integrazione MQTT collegata. Per la workstation conviene un utente dedicato. Il traffico MQTT resta in LAN e non ha bisogno di passare dal tailnet.
-        </li>
-        <li>
-          <strong>HASS.Agent</strong>
-          Il progetto mantenuto è il fork della community, <a href="https://github.com/hass-agent/HASS.Agent" target="_blank" rel="noopener">hass-agent/HASS.Agent</a>: l'originale di LAB02 Research è fermo da tempo. Nella configurazione iniziale si indicano indirizzo e credenziali del broker, con un test di connessione.
-        </li>
-        <li>
-          <strong>Comandi</strong>
-          I due <code>.bat</code> diventano due <code>CustomCommand</code> con percorso assoluto, esposti come <code>button</code>: sono azioni puntuali, non interruttori con uno stato.
-        </li>
-        <li>
-          <strong>Discovery</strong>
-          In Home Assistant le entità compaiono sotto l'integrazione MQTT, raggruppate in un dispositivo con il nome del PC, e si aggiungono alla dashboard accanto al comando di accensione (§6).
-        </li>
-      </ol>
-
-      <pre data-label="HASS.Agent → Commands → Add New"><code>Type:         CustomCommand
-Name:         monitor_remoto            # senza spazi: diventa l'entity id
-Command:      C:\Scripts\remote.bat     # percorso assoluto
-Entity type:  button
-
-Type:         CustomCommand
-Name:         monitor_locale
-Command:      C:\Scripts\local.bat
-Entity type:  button</code></pre>
-
-      <p>I comandi integrati <code>MonitorSleep</code> e <code>MonitorWake</code> non sono un'alternativa: mettono i monitor in standby, come il pulsante di spegnimento, e per Windows restano attivi (§4).</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body">
-          <strong>I comandi sui display richiedono la sessione utente</strong>
-          HASS.Agent ha due componenti. L'<strong>app</strong> gira nella sessione dell'utente connesso. Il <strong>Satellite Service</strong> è un servizio di Windows e funziona anche senza utenti connessi, utile per avere i sensori già dalla schermata di accesso. La configurazione dei display però appartiene alla sessione utente, mentre un servizio gira nella sessione 0, che non ha un desktop. I due comandi vanno quindi definiti nell'app, e sono disponibili solo dopo l'accesso.
-        </div>
-      </div>
-
-      <h3>Sensori e temperature</h3>
-
-      <p>HASS.Agent include molti sensori pronti: carico della CPU, memoria, dischi, ultimo avvio, stato della sessione, finestra attiva. In Home Assistant diventano entità ordinarie, con storico e utilizzabili nelle automazioni. Le temperature richiedono un passaggio in più.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body">
-          <strong>Il sensore di temperatura GPU restituisce 0</strong>
-          Per la CPU un sensore di temperatura nativo non è mai esistito. Quello della GPU nelle release recenti restituisce sempre <code>0</code>: gli sviluppatori hanno rimosso per motivi di sicurezza la libreria LibreHardwareMonitor che leggeva l'hardware, e il sensore è rimasto solo per compatibilità. La soluzione documentata è eseguire <strong>LibreHardwareMonitor</strong> separatamente e leggerne i valori via WMI con un sensore <code>WmiQuery</code>.
-        </div>
-      </div>
-
-      <pre data-label="HASS.Agent → Sensors → WmiQuery" class="wrap"><code>Scope:  \\.\ROOT\LibreHardwareMonitor
-
-# GPU
-SELECT value FROM Sensor WHERE Name LIKE "%GPU Core%" AND SensorType = "Temperature"
-
-# CPU Intel
-SELECT value FROM Sensor WHERE Name LIKE "%CPU Core%" AND SensorType = "Temperature"
-
-# CPU AMD
-SELECT value FROM Sensor WHERE Name LIKE "%CPU Package%" AND SensorType = "Temperature"</code></pre>
-
-      <p>LibreHardwareMonitor deve essere in esecuzione, perché è lui a pubblicare il namespace WMI, e deve avere privilegi di amministratore, altrimenti buona parte dei sensori non è leggibile. Il pulsante <em>Test WMI Query</em> di HASS.Agent permette di verificare la query prima di salvarla.</p>
-
-      <h2>6. Accensione da remoto: Wake-on-LAN</h2>
-
-      <p>Tenere accesa 24/7 una workstation con GPU dedicata per usarla qualche sera a settimana non ha senso, né per i consumi né per il rumore. Serve il <strong>Wake-on-LAN</strong>, ed è qui che il Raspberry Pi diventa indispensabile.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">📖</span>
-        <div class="callout-body">
-          <strong>Perché il WoL non può passare da Tailscale</strong>
-          Il <em class="term">magic packet</em> è un pacchetto UDP broadcast: sei byte <code>FF</code> seguiti da sedici ripetizioni del MAC della scheda da svegliare. A PC spento lo riceve la <strong>scheda di rete</strong>, alimentata dalla linea di standby a 5 V. Tailscale invece è un servizio del sistema operativo: a PC spento non gira, e l'indirizzo <code>100.x.y.z</code> della workstation non esiste nel tailnet. Il pacchetto deve quindi partire da un dispositivo già acceso <em>dentro</em> la LAN.
-        </div>
-      </div>
-
-      <ol class="steps">
-        <li>
-          <strong>Dal telefono apro Home Assistant</strong>
-          Telefono e Pi sono entrambi nel tailnet: nessuna porta aperta sul router, nessun cloud intermedio.
-        </li>
-        <li>
-          <strong>Home Assistant invia il magic packet</strong>
-          Con l'integrazione nativa Wake on LAN, configurata con il MAC della workstation e l'indirizzo di broadcast. In dashboard è un bottone.
-        </li>
-        <li>
-          <strong>Il pacchetto parte dalla LAN</strong>
-          Il Pi è fisicamente sulla rete di casa: il broadcast raggiunge la NIC della workstation, che si accende.
-        </li>
-        <li>
-          <strong>Avvio in circa quaranta secondi</strong>
-          POST, GRUB che sceglie Windows (§7), servizi Sunshine e Tailscale, che rientra nel tailnet senza attendere un accesso (§8).
-        </li>
-      </ol>
-
-      <h3>Verificare l'avvio</h3>
-
-      <p>Per sapere se l'accensione è andata a buon fine uso l'integrazione <strong>Ping (ICMP)</strong> di Home Assistant verso l'IP LAN della workstation: un binary sensor visibile accanto al bottone di accensione. Dalla versione 2023.12 si configura solo da interfaccia, e l'intervallo predefinito di 30 secondi è adeguato.</p>
-
-      <pre data-label="Home Assistant"><code>Impostazioni → Dispositivi e servizi → Aggiungi integrazione → Ping (ICMP)
-Host: 192.168.1.50        # IP LAN della workstation</code></pre>
-
-      <p>Il sensore ha valore diagnostico: separa un magic packet non arrivato (ping assente) da una macchina accesa ma non raggiungibile via tailnet o con Sunshine fermo (ping presente). Sono guasti diversi, con cause diverse.</p>
-
-      <h3>WoL e NIC PCIe</h3>
-
-      <p>Il WoL funzionava in modo affidabile fino alla prima interruzione di corrente: un micro-blackout, la ciabatta staccata per pulire. Da quel momento smetteva di funzionare, senza alcun errore visibile.</p>
-
-      <p>Il cavo era collegato a una <strong>NIC PCIe aggiuntiva</strong>. Dopo una perdita completa di alimentazione la scheda ripartiva con il WoL disarmato, e nessuno lo riarmava perché il sistema operativo non si avviava. Le impostazioni del BIOS (AC Recovery, opzioni ACPI, power management PCIe, Deep Sleep) non hanno risolto in modo affidabile: il comportamento dipende da come la scheda madre alimenta e gestisce lo slot in standby, e su questo non c'è controllo.</p>
-
-      <p>La soluzione è stata spostare il cavo sulla <strong>NIC integrata</strong>. Le NIC on-board sono gestite dal firmware della scheda madre insieme all'ACPI della piattaforma e mantengono il WoL anche dopo un blackout. Da allora non ho più avuto risvegli mancati.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">
-          <strong>Il test significativo</strong>
-          Spegnere e riaccendere da remoto non basta. Il test utile è: spegnere il PC, <strong>togliere alimentazione</strong> per un minuto, ridarla e solo dopo inviare il magic packet. In Windows vanno inoltre verificati "Consenti al dispositivo di riattivare il computer" nelle proprietà della scheda di rete e la disattivazione dell'<em>Avvio rapido</em>, che non è un vero spegnimento e su molte schede interferisce con il WoL.
-        </div>
-      </div>
-
-      <h2>7. GRUB: Windows come voce predefinita</h2>
-
-      <p>Con il dual-boot, dopo il WoL GRUB resta fermo sul menu in attesa di una scelta: macchina accesa, consumi, e Sunshine mai avviato. Windows va impostato come voce predefinita. Da Fedora, come root:</p>
-
-      <pre data-label="root@fedora"><code># 1. titolo esatto della voce Windows
-grep -i 'menuentry' /boot/grub2/grub.cfg | grep -i windows
-
-# 2. impostarla come default persistente
-grub2-set-default "Windows Boot Manager (su /dev/nvme0n1p1)"
-
-# 3. verifica
-grub2-editenv list</code></pre>
-
-      <p>Se la voce Windows non compare, è perché Fedora disabilita <code>os-prober</code> per impostazione predefinita. Va abilitato in <code>/etc/default/grub</code>:</p>
-
-      <pre data-label="/etc/default/grub"><code>GRUB_DISABLE_OS_PROBER=false
-GRUB_DEFAULT=saved
-GRUB_TIMEOUT=5</code></pre>
-
-      <p>e va rigenerata la configurazione:</p>
-
-      <pre data-label="root@fedora"><code>grub2-mkconfig -o /boot/grub2/grub.cfg</code></pre>
-
-      <p>Il timeout di 5 secondi mi lascia il tempo di scegliere Fedora quando sono davanti al PC, e su un avvio di circa quaranta secondi pesa poco.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">
-          <strong>Riavviare in Fedora una sola volta: <code>grub2-reboot</code></strong>
-          Con Windows predefinito, anche un riavvio lanciato da Fedora, per esempio dopo un aggiornamento del kernel, finisce in Windows. <code>grub2-reboot</code> imposta una voce solo per l'avvio successivo, poi torna in vigore il default salvato: <code>grub2-reboot 0</code> riavvia una volta nella prima voce del menu, cioè il kernel Fedora più recente.
-        </div>
-      </div>
-
-      <h2>8. Tailscale senza accesso: unattended mode e scadenza delle chiavi</h2>
-
-      <p>Con WoL e GRUB a posto la catena sembrava completa. Il ping in Home Assistant diventava verde, ma Moonlight non trovava l'host: la workstation era accesa e raggiungibile in LAN, ma assente dal tailnet. Il client Tailscale era in stato <code>NeedsLogin</code>.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">📖</span>
-        <div class="callout-body">
-          <strong>NeedsLogin</strong>
-          <em class="term">NeedsLogin</em> è uno degli stati del servizio Tailscale, visibile nel campo <code>BackendState</code> di <code>tailscale status --json</code>. Indica che il servizio è attivo ma non ha un'identità valida con cui presentarsi al control plane: l'indirizzo <code>100.x.y.z</code> non risponde e per gli altri nodi la macchina è offline. Le cause tipiche sono due: nessun profilo da caricare, oppure chiave del nodo scaduta.
-        </div>
-      </div>
-
-      <p>Nel mio caso era la prima. Su Windows, per impostazione predefinita, Tailscale lavora per conto dell'utente connesso: il servizio parte all'avvio, ma carica il profilo dell'utente che ha effettuato l'accesso e si disconnette al logout. All'avvio, senza utenti connessi, non ha un profilo da caricare.</p>
-
-      <p>Il risultato è uno stallo. Sunshine gira come servizio e potrebbe trasmettere anche la schermata di accesso di Windows, ma per raggiungerlo serve Tailscale, che a sua volta attende un accesso. Da remoto non c'è modo di uscirne.</p>
-
-      <p>La soluzione è la modalità <strong>Run unattended</strong>: il profilo non è più legato alla sessione, il servizio si connette all'avvio e resta connesso anche dopo il logout. Si attiva dall'icona nell'area di notifica oppure da riga di comando:</p>
-
-      <pre data-label="tray di Tailscale"><code>tasto destro sull'icona → Preferences → Run unattended</code></pre>
-
-      <pre data-label="powershell (amministratore)"><code>tailscale up --unattended
-# "tailscale up" non accetta modifiche parziali: se in passato sono stati usati
-# altri flag vanno ripetuti tutti. L'errore mostra il comando completo.</code></pre>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">
-          <strong>Il test significativo, di nuovo</strong>
-          Riavviare la workstation <strong>senza effettuare l'accesso</strong>. Dal laptop, <code>tailscale status</code> deve mostrarla online, e Moonlight deve trasmettere la schermata di accesso di Windows. Se è così, la catena regge anche senza nessuno davanti al PC.
-        </div>
-      </div>
-
-      <p>Il compromesso: la workstation resta nel tailnet con la mia identità anche senza nessuno davanti, e chiunque effettui l'accesso su quel PC usa il mio nodo. Su una macchina personale è accettabile. Su un PC condiviso è preferibile registrarlo con un <em>tag</em>, come nodo di servizio non associato a un utente.</p>
-
-      <h3>Scadenza delle chiavi</h3>
-
-      <p>Allo stesso stato si arriva anche per un'altra via. La chiave di ogni nodo scade, per impostazione predefinita, dopo <strong>180 giorni</strong>, e a quel punto il nodo richiede un nuovo login. Su una macchina raggiungibile solo via Tailscale l'effetto è lo stesso stallo, a distanza di mesi.</p>
-
-      <p>Per i nodi che non devono mai cadere, la scadenza si disattiva dalla console di amministrazione: <strong>Machines</strong> → menu della macchina → <strong>Disable key expiry</strong>. Va disattivata sulla workstation e sul Pi, da cui dipende l'accensione. La contropartita è che, se un dispositivo viene rubato, la sua chiave resta valida finché non lo si rimuove dalla console.</p>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">
-          <strong>Diagnosi rapida</strong>
-          Nodo assente dal tailnet dopo un riavvio: manca l'unattended mode. Nodo assente all'improvviso dopo mesi di funzionamento: chiave scaduta, segnalata nella console di amministrazione.
-        </div>
-      </div>
-
-      <h2>Sequenza completa</h2>
-
-      <ol class="steps">
-        <li>
-          <strong>Accensione</strong>
-          Da Home Assistant invio il Wake-on-LAN: il Pi trasmette il magic packet, la NIC integrata accende la workstation.
-        </li>
-        <li>
-          <strong>Verifica</strong>
-          Il sensore ping diventa verde entro un minuto. Se resta rosso, il problema è nel risveglio, non nello streaming.
-        </li>
-        <li>
-          <strong>Boot</strong>
-          GRUB avvia Windows dopo 5 secondi di timeout.
-        </li>
-        <li>
-          <strong>Rete</strong>
-          In unattended mode Tailscale rientra nel tailnet prima di qualsiasi accesso.
-        </li>
-        <li>
-          <strong>Display</strong>
-          Apro Moonlight e premo "monitor remoto" in Home Assistant: HASS.Agent esegue <code>remote.bat</code>, i monitor fisici si disattivano e il desktop passa sul display virtuale 16:10.
-        </li>
-        <li>
-          <strong>Sessione</strong>
-          1920×1200 a 90 Hz, HEVC, circa 24 Mbps.
-        </li>
-      </ol>
-
-      <h2>Limiti e sviluppi</h2>
-
-      <p><strong>Comandi non legati allo stream.</strong> I display si cambiano con un bottone, ma resta un'azione manuale. Sunshine prevede i <strong>Command Preparations</strong>, con un comando <em>Do</em> eseguito all'apertura della sessione e uno <em>Undo</em> alla chiusura: con <code>remote.bat</code> in Do e <code>local.bat</code> in Undo il cambio diventerebbe automatico. Anche qui servono percorsi assoluti.</p>
-
-      <p><strong>Nessuno spegnimento automatico.</strong> HASS.Agent ha già un comando <code>Shutdown</code> integrato. Manca un'automazione in Home Assistant che lo invochi dopo N minuti senza sessioni Moonlight attive.</p>
-
-      <p><strong>Nessuna ACL.</strong> Nel tailnet, per impostazione predefinita, tutti i nodi comunicano con tutti. Con tre dispositivi personali va bene; aggiungendo dispositivi meno affidabili o condividendo un nodo servirebbero ACL che limitino il laptop alle sole porte di Sunshine.</p>
-
-      <div class="callout callout-ok">
-        <span class="callout-icon">✓</span>
-        <div class="callout-body">
-          <strong>Risultato</strong>
-          Una workstation normalmente spenta, che si accende da un bottone sul telefono, arriva da sola a Windows, rientra nel tailnet senza attendere un accesso e presenta un display virtuale nel formato esatto del laptop, con i monitor di casa disattivati. Nessuna porta obbligatoria sul router, nessun IP pubblico, nessun servizio esposto. Il problema più costoso da diagnosticare non è stato software: è stata la scheda di rete su cui era collegato il cavo.
-        </div>
-      </div>
-
-      <h2>Riferimenti</h2>
-
-      <ul>
-        <li><a href="https://tailscale.com/compare/wireguard" target="_blank" rel="noopener">Tailscale — confronto con WireGuard</a></li>
-        <li><a href="https://tailscale.com/blog/how-nat-traversal-works" target="_blank" rel="noopener">How NAT traversal works</a></li>
-        <li><a href="https://tailscale.com/docs/how-to/run-unattended" target="_blank" rel="noopener">Tailscale — Run unattended</a></li>
-        <li><a href="https://tailscale.com/docs/features/access-control/key-expiry" target="_blank" rel="noopener">Tailscale — Key expiry</a></li>
-        <li><a href="https://github.com/juanfont/headscale" target="_blank" rel="noopener">Headscale</a> — control plane self-hosted</li>
-        <li><a href="https://github.com/LizardByte/Sunshine" target="_blank" rel="noopener">Sunshine</a> e <a href="https://moonlight-stream.org/" target="_blank" rel="noopener">Moonlight</a></li>
-        <li><a href="https://github.com/VirtualDrivers/Virtual-Display-Driver" target="_blank" rel="noopener">Virtual Display Driver</a></li>
-        <li><a href="https://github.com/MartinGC94/DisplayConfig" target="_blank" rel="noopener">DisplayConfig</a> — modulo PowerShell per le API CCD</li>
-        <li><a href="https://github.com/hass-agent/HASS.Agent" target="_blank" rel="noopener">HASS.Agent</a> — fork mantenuto dalla community</li>
-        <li><a href="https://hassagent.readthedocs.io/en/latest/wmi-examples/" target="_blank" rel="noopener">HASS.Agent — esempi di query WMI</a></li>
-        <li><a href="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor" target="_blank" rel="noopener">LibreHardwareMonitor</a></li>
-        <li><a href="https://www.home-assistant.io/integrations/ping/" target="_blank" rel="noopener">Home Assistant — Ping (ICMP)</a></li>
-      </ul>
-
-    </div><!-- /article-body -->
-
-  </article>
-
-  <footer>
-    <span>© 2026 Gabbro</span>
-    <a href="../index.html">← torna agli articoli</a>
+      <footer class="article-end">
+        <a href="../index.html#articoli">← Tutti gli articoli</a>
+        <span>Testo rilasciato con licenza CC BY 4.0</span>
+      </footer>
+    </article>
+
+    <aside class="toc" aria-label="Indice">
+      <p class="toc-title">In questa pagina</p>
+      <ol></ol>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© 2025–2026 Gabbro</span>
+      <nav aria-label="Piè di pagina">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="https://github.com/sergabbro" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
   </footer>
 
+  <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/article.js" defer></script>
 </body>
 </html>

@@ -3,178 +3,231 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cifratura disco Linux — Gabbro</title>
-  <link rel="stylesheet" href="../style.css">
+  <title>Accesso fisico e cifratura del disco su Linux — Gabbro</title>
+  <meta name="description" content="Perché i permessi del sistema operativo non proteggono i dati a riposo, cosa garantisce LUKS2 e quali limiti restano: /boot in chiaro, TPM, chiavi in RAM, passphrase.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Accesso fisico e cifratura del disco su Linux">
+  <meta property="og:url" content="https://sergabbro.github.io/articles/linux_cifratura.html">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e63946'/%3E%3Crect x='7' y='7' width='18' height='18' rx='4' fill='%2307080a'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/article.css">
 </head>
 <body>
 
+  <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
   <header class="navbar">
-    <a href="../index.html" class="navbar-brand">
-      <div class="nav-logo"></div>
-      <h1>Gabbro</h1>
-    </a>
-    <nav>
-      <a href="../index.html">Home</a>
-      <a href="../index.html#articoli" class="active">Articoli</a>
-    </nav>
+    <div class="wrap">
+      <a href="../index.html" class="brand" aria-label="Gabbro, home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Gabbro</span>
+        <span class="brand-role">ing. elettronico</span>
+      </a>
+      <nav class="nav-links" aria-label="Principale">
+        <a href="../index.html#articoli" aria-current="page">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="../index.html#chi-sono">Chi sono</a>
+        <a href="https://github.com/sergabbro" class="ext" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+    <div class="progress" aria-hidden="true"></div>
   </header>
 
-  <article class="article-page">
+  <main id="contenuto" class="wrap article-layout">
+    <article class="article-shell">
 
-    <div class="breadcrumb fade-up">
-      <a href="../index.html">Gabbro</a>
-      <span>/</span>
-      <a href="../index.html#articoli">articoli</a>
-      <span>/</span>
-      cifratura-disco-linux
+      <nav class="breadcrumb rise" aria-label="Percorso">
+        <a href="../index.html">gabbro</a><span class="sep">/</span>
+        <a href="../index.html#articoli">articoli</a><span class="sep">/</span>
+        <span>cifratura-disco-linux</span>
+      </nav>
+
+      <header class="article-header rise rise-1">
+        <div class="card-meta">
+          <time datetime="2025-02-19">19 febbraio 2025</time><span class="sep"></span><span>7 min di lettura</span>
+        </div>
+        <h1>Accesso fisico e cifratura del disco su Linux</h1>
+        <p class="lead">La password di login protegge un sistema in esecuzione, non i dati memorizzati sul disco. Questo articolo spiega perché, che cosa garantisce la cifratura completa con LUKS2 e quali limiti restano anche con il disco cifrato.</p>
+        <div class="tags">
+          <span class="tag tag-red">security</span>
+          <span class="tag tag-cyan">linux</span>
+          <span class="tag tag-gray">luks</span>
+          <span class="tag tag-gray">grub</span>
+          <span class="tag tag-gray">tpm</span>
+        </div>
+      </header>
+
+      <div class="article-body rise rise-2">
+
+        <h2>Il modello di minaccia</h2>
+
+        <p>Il caso di riferimento è il più comune: un portatile perso, rubato o lasciato incustodito. Chi lo trova ha <strong>accesso fisico</strong> alla macchina, ma non conosce alcuna password. La domanda è che cosa può leggere o modificare.</p>
+
+        <p>Conviene separare due stati. Con la macchina <strong>spenta</strong>, il disco contiene i dati <em>a riposo</em> e la loro protezione dipende solo da come sono memorizzati. Con la macchina <strong>accesa o sospesa</strong>, i dati sono accessibili al sistema operativo e la protezione dipende dal sistema in esecuzione. La cifratura del disco agisce sul primo stato; sul secondo, come si vedrà, molto meno.</p>
+
+        <div class="callout callout-risk">
+          <strong>Perimetro dell'articolo</strong>
+          Le procedure citate sono le stesse che le distribuzioni documentano per il recupero di una password dimenticata. Servono qui a motivare le contromisure, e vanno provate solo su macchine proprie.
+        </div>
+
+        <h2>Perché la password di login non basta</h2>
+
+        <p>I permessi di Linux, dalla password utente ai diritti sui file, sono applicati dal <strong>kernel in esecuzione</strong>. Chi controlla la fase di avvio controlla quale kernel parte e con quali parametri, e quindi può aggirare quei permessi senza violarli: semplicemente, non li carica.</p>
+
+        <p>Il caso più noto è il bootloader. GRUB permette di modificare la riga di comando del kernel prima dell'avvio, premendo <code>e</code> sulla voce del menu. È una funzione voluta, pensata per la manutenzione: aggiungendo un parametro come <code>rd.break</code> o <code>init=/bin/bash</code> il sistema si ferma in una shell di root prima del login, ed è così che si reimposta una password di root dimenticata. La stessa funzione, a disco non cifrato, è a disposizione di chiunque abbia la tastiera davanti.</p>
+
+        <p>Il bootloader però è solo una delle vie. Con accesso fisico si può anche avviare un sistema live da USB, oppure estrarre l'SSD e collegarlo a un'altra macchina. In tutti e tre i casi il risultato è lo stesso: il filesystem viene montato da un kernel che non applica le regole del sistema originale.</p>
+
+        <div class="table-wrap">
+          <table class="left">
+            <thead>
+              <tr><th>Vettore</th><th>Password GRUB</th><th>Password firmware</th><th>LUKS</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Parametri del kernel da GRUB</td><td>blocca</td><td>—</td><td>blocca</td></tr>
+              <tr><td>Avvio da USB live</td><td>—</td><td>blocca*</td><td>blocca</td></tr>
+              <tr><td>Disco estratto e letto altrove</td><td>—</td><td>—</td><td>blocca</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">* finché il firmware non viene resettato, operazione che su molti desktop richiede solo di rimuovere la batteria tampone.</p>
+
+        <p>La tabella riassume il punto: le password su bootloader e firmware sono controlli di accesso, e proteggono solo finché il dato resta nella macchina che li applica. La cifratura rende il dato illeggibile ovunque venga montato.</p>
+
+        <h2>LUKS2: che cosa protegge</h2>
+
+        <p><strong>LUKS</strong> (<em>Linux Unified Key Setup</em>) è il formato standard di cifratura del disco su Linux, gestito con <code>cryptsetup</code> e basato sul modulo del kernel <code>dm-crypt</code>. Il volume è cifrato a blocchi, di norma con AES-XTS; senza la chiave, il contenuto è indistinguibile da dati casuali.</p>
+
+        <div class="callout callout-def">
+          <strong>Chiave master e keyslot</strong>
+          I dati sono cifrati con una <em class="term">chiave master</em> casuale, generata alla creazione del volume e mai derivata dalla passphrase. La passphrase serve solo a decifrare una copia della chiave master conservata in un <em class="term">keyslot</em> dell'header. Si possono avere più keyslot (passphrase diverse, un file di chiave, il TPM) che sbloccano la stessa chiave master; cambiare passphrase significa riscrivere un keyslot, non ricifrare il disco.
+        </div>
+
+        <p>La passphrase non viene usata direttamente: passa da una <strong>funzione di derivazione della chiave</strong> (KDF) volutamente costosa. LUKS2 usa di default <strong>Argon2id</strong>, che richiede sia tempo di calcolo sia memoria, e rende poco efficiente la ricerca esaustiva su GPU. Il formato LUKS1, ancora presente su installazioni datate, usa PBKDF2, che non ha costo in memoria.</p>
+
+        <pre data-label="bash"><code>sudo cryptsetup luksDump /dev/nvme0n1p3
+# Version:        2
+# ...
+# Keyslots:
+#   0: luks2
+#       PBKDF:      argon2id</code></pre>
+
+        <p>Se il keyslot risulta <code>pbkdf2</code>, è possibile convertirlo senza ricifrare i dati con <code>cryptsetup luksConvertKey --pbkdf argon2id</code>, dopo un backup dell'header con <code>cryptsetup luksHeaderBackup</code>.</p>
+
+        <div class="callout callout-info">
+          <strong>Va deciso all'installazione</strong>
+          Fedora, Ubuntu e Debian offrono la cifratura completa come opzione dell'installer. Cifrare un sistema già installato è possibile (<code>cryptsetup reencrypt --encrypt</code>), ma è un'operazione delicata che richiede comunque un backup completo; nella pratica conviene reinstallare. Sui processori con istruzioni AES dedicate l'impatto sulle prestazioni è trascurabile per l'uso quotidiano.
+        </div>
+
+        <h2>I limiti della cifratura</h2>
+
+        <p>LUKS risolve il problema principale, ma ha confini precisi. Conoscerli serve a dimensionare le difese in base al valore dei dati.</p>
+
+        <h3>/boot non cifrato e attacco evil maid</h3>
+
+        <p>Nella configurazione predefinita di Fedora e Ubuntu, la partizione <code>/boot</code>, che contiene kernel e <strong>initramfs</strong>, non è cifrata. La passphrase non la chiede GRUB, ma l'initramfs, cioè codice letto da una partizione in chiaro.</p>
+
+        <p>Ne deriva l'attacco detto <strong>evil maid</strong>: chi può accedere alla macchina due volte modifica l'initramfs alla prima occasione, in modo che registri la passphrase al successivo avvio, e torna a raccoglierla. Il disco cifrato resta intatto; è il codice che chiede la chiave a essere compromesso.</p>
+
+        <p>Secure Boot da solo non basta, perché nelle configurazioni tradizionali verifica la firma di bootloader e kernel ma non quella dell'initramfs, generato localmente. La contromisura completa è una catena di avvio interamente firmata, per esempio con <strong>Unified Kernel Image</strong> (kernel, initramfs e riga di comando in un unico eseguibile firmato), eventualmente legata al TPM tramite misurazioni (vedi <em>Sblocco tramite TPM</em>).</p>
+
+        <h3>La passphrase</h3>
+
+        <p>Argon2id rende costoso ogni tentativo, ma non compensa una passphrase prevedibile: una parola di dizionario seguita da un anno cade comunque in tempi brevi. Una passphrase di cinque o sei parole scelte a caso (metodo <em>diceware</em>) offre un'entropia molto superiore a una password breve con simboli, ed è più facile da ricordare e digitare.</p>
+
+        <h3>Sblocco tramite TPM</h3>
+
+        <p>Il <strong>TPM</strong> può custodire una chiave LUKS e rilasciarla all'avvio solo se le misurazioni della catena di avvio (registri PCR) corrispondono ai valori attesi. Su Linux la si registra con <code>systemd-cryptenroll</code>. Il vantaggio è che una catena di avvio alterata non ottiene la chiave, il che chiude l'attacco evil maid descritto sopra.</p>
+
+        <p>Lo sblocco basato <strong>solo</strong> sul TPM ha però due debolezze:</p>
+
+        <ul>
+          <li>il sistema arriva da solo alla schermata di login con il disco già aperto, quindi la protezione dei dati torna a dipendere dal sistema in esecuzione;</li>
+          <li>sui TPM discreti la chiave transita su un bus esterno (LPC o SPI), dove in passato è stata intercettata con strumenti economici. Le versioni recenti di systemd cifrano la sessione con il TPM, il che neutralizza la semplice intercettazione passiva, ma il rischio residuo dipende dall'hardware.</li>
+        </ul>
+
+        <p>La configurazione equilibrata è <strong>TPM più PIN</strong>: il TPM verifica l'integrità della catena di avvio, il PIN aggiunge un fattore che l'attaccante non possiede. Il TPM applica inoltre un limite ai tentativi, per cui anche un PIN breve resiste alla ricerca esaustiva.</p>
+
+        <pre data-label="bash"><code>sudo systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes /dev/nvme0n1p3</code></pre>
+
+        <div class="callout callout-warn">
+          <strong>Conservare sempre una passphrase di recupero</strong>
+          Un aggiornamento del firmware o una modifica a Secure Boot cambiano le misurazioni e fanno fallire lo sblocco via TPM. Un keyslot con passphrase, o una chiave di recupero generata con <code>systemd-cryptenroll --recovery-key</code>, è indispensabile per non perdere l'accesso ai propri dati.
+        </div>
+
+        <h3>Sistema acceso o sospeso</h3>
+
+        <p>Con il volume aperto, la chiave master risiede in RAM. Il contenuto della DRAM non si annulla istantaneamente allo spegnimento, e a bassa temperatura persiste per secondi: il lavoro di Halderman et al. del 2008 (<em>Lest We Remember</em>) ha mostrato il recupero di chiavi di cifratura da moduli raffreddati e spostati su un'altra macchina. Su hardware moderno con RAM saldata e scrambling della memoria il vettore è molto più difficile, ma la conclusione resta valida: <strong>un portatile sospeso ha il disco aperto</strong>. Quando il rischio è concreto, per esempio in viaggio, la macchina va spenta, non sospesa.</p>
+
+        <h2>Configurazione consigliata</h2>
+
+        <p>Le contromisure vanno scelte in base al valore dei dati e al tipo di esposizione. Per la maggior parte degli utenti il primo livello è sufficiente.</p>
+
+        <div class="table-wrap">
+          <table class="left">
+            <thead>
+              <tr><th>Scenario</th><th>Contromisure</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Furto o smarrimento occasionale</td><td>LUKS2 con Argon2id, passphrase diceware, spegnimento invece di sospensione in viaggio</td></tr>
+              <tr><td>Accesso fisico ripetuto possibile</td><td>In aggiunta: Secure Boot, catena di avvio firmata (UKI), password del firmware</td></tr>
+              <tr><td>Dati di alto valore</td><td>In aggiunta: TPM con PIN legato alle misurazioni, passphrase di recupero conservata offline</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">Ogni livello include il precedente.</p>
+
+        <h2>Conclusioni</h2>
+
+        <p>La fiducia in un sistema si costruisce dal basso: firmware, bootloader, kernel, sistema operativo. Se uno di questi livelli è accessibile senza protezione crittografica, i controlli dei livelli superiori si possono aggirare. La password di login protegge la sessione, non il disco.</p>
+
+        <p>La cifratura completa con LUKS2 chiude il caso più frequente, quello del dispositivo perso o rubato da spento, con un costo prestazionale trascurabile e una sola scelta al momento dell'installazione. Secure Boot, catena firmata e TPM con PIN sono strati successivi, da aggiungere quando il modello di minaccia lo giustifica.</p>
+
+        <div class="callout callout-ok">
+          <strong>In sintesi</strong>
+          Su un portatile, cifrare il disco è il requisito minimo. Il resto dipende da chi potrebbe avere accesso alla macchina, e per quanto tempo.
+        </div>
+
+        <h2>Riferimenti</h2>
+
+        <ul>
+          <li><a href="https://gitlab.com/cryptsetup/cryptsetup/-/wikis/FrequentlyAskedQuestions" target="_blank" rel="noopener">cryptsetup — FAQ</a></li>
+          <li><a href="https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system" target="_blank" rel="noopener">ArchWiki — dm-crypt, cifratura dell'intero sistema</a></li>
+          <li><a href="https://www.freedesktop.org/software/systemd/man/latest/systemd-cryptenroll.html" target="_blank" rel="noopener">systemd-cryptenroll(1)</a></li>
+          <li><a href="https://uapi-group.org/specifications/specs/unified_kernel_image/" target="_blank" rel="noopener">UAPI Group — Unified Kernel Image</a></li>
+          <li><a href="https://citp.princeton.edu/our-work/memory/" target="_blank" rel="noopener">Halderman et al. — Lest We Remember: Cold Boot Attacks on Encryption Keys</a></li>
+        </ul>
+
+      </div>
+
+      <footer class="article-end">
+        <a href="../index.html#articoli">← Tutti gli articoli</a>
+        <span>Testo rilasciato con licenza CC BY 4.0</span>
+      </footer>
+    </article>
+
+    <aside class="toc" aria-label="Indice">
+      <p class="toc-title">In questa pagina</p>
+      <ol></ol>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© 2025–2026 Gabbro</span>
+      <nav aria-label="Piè di pagina">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="https://github.com/sergabbro" target="_blank" rel="noopener">GitHub</a>
+      </nav>
     </div>
-
-    <header class="article-header fade-up fade-up-1">
-      <div class="article-meta">
-        <span class="article-date">2025-01-01</span>
-        <span class="tag tag-red">security</span>
-        <span class="tag tag-cyan">linux</span>
-        <span class="tag tag-gray">grub</span>
-        <span class="tag tag-gray">luks</span>
-      </div>
-      <h1>Perché dovresti cifrare il disco su Linux</h1>
-      <p class="lead">Con accesso fisico al tuo laptop, una persona qualsiasi può aprirsi una shell di root in meno di due minuti. Senza sapere una password. Vediamo come, e soprattutto come evitarlo — perché la difesa non è banale come sembra.</p>
-    </header>
-
-    <div class="article-body fade-up fade-up-2">
-
-      <h2>Il problema</h2>
-
-      <p>Su un Linux con disco <strong>non cifrato</strong>, la password del tuo utente è un placebo. Conta zero. Se qualcuno tocca fisicamente la macchina, può leggere ogni file, modificare il sistema, piazzare backdoor e cambiare le credenziali — e di tutta la storia tu non saprai mai niente, a meno che non ti accorga di qualche dettaglio strano dopo.</p>
-
-      <p>Il punto debole è il bootloader. GRUB, che fa girare praticamente tutte le distro mainstream, ha un editor dei parametri di avvio accessibile con un tasto. Da lì cambiare il processo di init è una riga di testo.</p>
-
-      <div class="callout callout-danger">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body">
-          <strong>Nota etica</strong>
-          L'articolo descrive una tecnica per capire i rischi e proteggersi. Provala sul tuo hardware o su macchine per cui hai autorizzazione scritta. Punto.
-        </div>
-      </div>
-
-      <h2>Prerequisiti</h2>
-
-      <p>Ho verificato la procedura su <strong>Fedora</strong> con <strong>GRUB2</strong>, ma il principio vale ovunque ci sia GRUB — Debian, Ubuntu, Arch, Mint. Una variante equivalente esiste anche per systemd-boot, e in altra forma anche per Windows senza BitLocker (in quel caso si gioca con utilman.exe o le immagini di ripristino, ma è un'altra storia).</p>
-
-      <h2>Come funziona l'attacco</h2>
-
-      <ol class="steps">
-        <li>
-          <strong>Accedere al menu GRUB</strong>
-          Se hai dual-boot il menu appare da solo. Con un OS solo viene nascosto, quindi durante l'avvio premi <code>Esc</code> ripetutamente, oppure tieni premuto <code>Shift</code> (dipende dalla distro).
-        </li>
-        <li>
-          <strong>Aprire l'editor dei parametri</strong>
-          Frecce sulla voce Linux, poi tasto <code>e</code>. Si apre un editor grezzo coi parametri del kernel.
-        </li>
-        <li>
-          <strong>Modificare init</strong>
-          Trova la riga che inizia con <code>linux</code>. Localizza il parametro <code>ro</code> (read-only) e cancella tutto quello che lo segue. In fondo aggiungi:
-          <pre data-label="GRUB edit"><code>rw init=/bin/bash</code></pre>
-          Risultato: il disco viene montato in lettura/scrittura, e bash diventa il primo processo dello spazio utente — eseguito come UID 0, ovviamente, senza nessun login.
-        </li>
-        <li>
-          <strong>Boot</strong>
-          <code>F10</code> o <code>Ctrl+X</code> e via. Ti ritrovi davanti a un prompt root sul filesystem dell'utente, esattamente come se ne possedessi le chiavi.
-        </li>
-      </ol>
-
-      <p>Da qui chi attacca ha tutto: <code>/etc/shadow</code>, le chiavi SSH in <code>~/.ssh/</code>, eventuali file <code>.env</code> con segreti, la cronologia del browser, i database locali delle password. Cambiare la password di un utente è un comando:</p>
-
-      <pre data-label="bash"><code>passwd nomeutente</code></pre>
-
-      <div class="callout callout-warning">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">
-          <strong>Nota tecnica</strong>
-          Se ti ritrovi comunque su un filesystem read-only nonostante <code>rw</code>, forza un remount: <code>mount -o remount,rw /</code>.
-        </div>
-      </div>
-
-      <h2>La difesa: cifratura LUKS</h2>
-
-      <p>La risposta è <strong>cifrare l'intero disco</strong> con LUKS (Linux Unified Key Setup), gestito tramite <code>cryptsetup</code>. Con LUKS, il disco è un blob illeggibile. Senza la passphrase — o la chiave — non c'è niente da leggere. Né attaccando il bootloader, né estraendo l'SSD e mettendolo in un altro computer, né avviando da una USB live. GRUB stesso chiede la passphrase prima ancora di caricare il kernel.</p>
-
-      <div class="callout callout-info">
-        <span class="callout-icon">ℹ️</span>
-        <div class="callout-body">
-          <strong>Va fatto all'installazione</strong>
-          LUKS si abilita <strong>quando installi il sistema</strong>. Applicarlo a posteriori a un'installazione esistente è possibile ma scomodo, e di solito conviene comunque fare un backup, formattare e reinstallare. Fedora, Ubuntu e Debian ti offrono la cifratura come singolo checkbox nell'installer — è letteralmente un click.
-        </div>
-      </div>
-
-      <h3>Perché non basta una password su GRUB?</h3>
-
-      <p>Mettere una password su GRUB blocca l'editor dei parametri, e in effetti chiude l'attacco descritto sopra. Ma è uno strato sottile: se il disco è in chiaro, basta estrarlo e collegarlo a un'altra macchina come secondo disco — la password di GRUB non difende i bit. LUKS invece protegge il dato a riposo, ovunque finisca a essere montato.</p>
-
-      <h2>Ma LUKS basta davvero? Spoiler: dipende</h2>
-
-      <p>Qui di solito gli articoli chiudono con "abilita LUKS e sei a posto". Non è del tutto vero. LUKS è solido, ma ha confini precisi, e alcuni sono meno ovvi di altri.</p>
-
-      <h3>1. /boot di solito non è cifrato</h3>
-
-      <p>Nella configurazione di default di Fedora, Ubuntu e compagnia, la partizione <code>/boot</code> (quella che contiene il kernel e l'initramfs) è in chiaro. Solo la radice è dentro LUKS. Il motivo è semplice: GRUB deve poter leggere kernel e initramfs <em>prima</em> di chiederti la passphrase, e supportare la decifratura nel bootloader è una rottura.</p>
-
-      <p>La conseguenza è che esiste una superficie d'attacco nota come <strong>evil maid</strong>: chi ha accesso fisico ripetuto (la classica "cameriera d'hotel") modifica l'initramfs in <code>/boot</code> per inserire codice che catturi la tua passphrase al prossimo avvio. La passphrase finisce in chiaro da qualche parte — file nascosto, partizione di servizio, esfiltrata via rete — e al ritorno l'attaccante ha tutto.</p>
-
-      <p>Si difende con secure boot, kernel firmati e un boot in chain verificato (su sistemi più seri si arriva a misurazioni TPM dell'intera boot chain). Roba non banale da configurare, ma se gestisci dati davvero sensibili ne vale la pena.</p>
-
-      <h3>2. La passphrase è il vero anello debole</h3>
-
-      <p>LUKS protegge dalla forza bruta con una funzione di derivazione lenta (Argon2id nei LUKS2 recenti, PBKDF2 nei più vecchi). Vuol dire che provare passphrase a caso costa caro in CPU. Però "caro" non vuol dire "impossibile": se la tua passphrase è <code>estate2024</code>, qualsiasi GPU moderna la trova in tempi gestibili.</p>
-
-      <p>Regole pratiche, niente magia:</p>
-      <ul>
-        <li>Una passphrase tipo <em>diceware</em> da almeno cinque-sei parole casuali batte qualsiasi "password complicata con simboli" da otto caratteri.</li>
-        <li>Verifica che la tua installazione usi LUKS2 con Argon2id (<code>cryptsetup luksDump /dev/sdX</code>). Su installazioni vecchie aggiornate è facile trovarsi ancora con PBKDF2, che è più debole.</li>
-      </ul>
-
-      <h3>3. TPM e auto-unlock: comodità con asterisco</h3>
-
-      <p>Molte guide recenti consigliano di legare la chiave LUKS al <strong>TPM</strong>, così il disco si sblocca da solo all'avvio senza dover digitare niente. Comodissimo, e in più scenari sensato — soprattutto in combinazione con Secure Boot, perché il TPM rilascia la chiave solo se la boot chain corrisponde allo stato atteso.</p>
-
-      <p>Però:</p>
-      <ul>
-        <li>Se sblocchi <strong>solo</strong> col TPM, perdi la protezione contro chi ha accesso al laptop acceso o sospeso. La chiave è già in memoria e il disco è di fatto aperto.</li>
-        <li>Esistono attacchi documentati di <strong>sniffing del bus TPM</strong> (LPC o SPI a seconda dell'hardware): un attaccante con tempo, strumenti e un saldatore può intercettare la chiave nel momento in cui il TPM la consegna alla CPU. Non è alla portata di tutti, ma esiste e funziona su laptop reali.</li>
-        <li>La buona pratica è TPM + PIN: il TPM sblocca solo dopo aver verificato un PIN che digiti tu. Hai comodità senza rinunciare a un secondo fattore.</li>
-      </ul>
-
-      <h3>4. Cold boot e attacchi alla RAM</h3>
-
-      <p>Quando il sistema è acceso o in sospensione, la chiave master di LUKS sta in chiaro in RAM. La memoria DRAM non si svuota istantaneamente quando togli corrente: a temperature basse i bit sopravvivono per secondi o decine di secondi. Storicamente, in laboratorio, sono stati ricostruiti contenuti di RAM raffreddando i moduli e spostandoli rapidamente su un'altra macchina. Sui laptop moderni la RAM è spesso saldata e questo specifico vettore è più difficile, ma il principio generale resta: <strong>laptop acceso o sospeso = chiave esposta</strong>. Se il portatile è davvero a rischio, spegnilo del tutto, non lo mettere semplicemente in sleep.</p>
-
-      <h3>5. Il modello di minaccia conta</h3>
-
-      <p>Va detto chiaramente: contro la stragrande maggioranza dei casi reali — laptop dimenticato in treno, furto opportunistico, controllo doganale rapido — LUKS con una passphrase decente è più che sufficiente. Gli attacchi qui sopra hanno costi variabili e quasi tutti richiedono accesso fisico ripetuto o competenze hardware. Non sono cose che capitano a tutti, ma è utile sapere che esistono per non avere illusioni e per dimensionare le difese in base a quanto valgono i dati.</p>
-
-      <h2>Conclusioni</h2>
-
-      <p>La fiducia in un sistema operativo sale dal firmware al bootloader al kernel. Se uno qualunque di questi strati è fisicamente accessibile senza protezione crittografica, gli strati sopra sono coreografia. LUKS chiude il problema più grosso e più comune. Tutto il resto — Secure Boot, TPM con PIN, passphrase forte — sono raffinamenti che si stratificano sopra per scenari più ostili.</p>
-
-      <p>Se hai dati personali, credenziali, chiavi SSH, foto, qualunque cosa su un laptop, <strong>cifra il disco</strong>. Tutti gli installer moderni lo offrono in un click, su hardware decente il costo prestazionale è trascurabile, e la protezione è reale.</p>
-
-      <div class="callout callout-danger">
-        <span class="callout-icon">🔐</span>
-        <div class="callout-body">
-          <strong>SEMPRE CIFRARE IL DISCO</strong>
-          Linux senza LUKS è una casa con la porta chiusa e le chiavi sotto lo zerbino. Sembra protetto, ma non lo è.
-        </div>
-      </div>
-
-    </div><!-- /article-body -->
-
-  </article>
-
-  <footer>
-    <span>© 2025 Gabbro</span>
-    <a href="../index.html">← torna agli articoli</a>
   </footer>
 
+  <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/article.js" defer></script>
 </body>
 </html>
