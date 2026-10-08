@@ -171,21 +171,15 @@ a { color: inherit; }
   flex-shrink: 0;
 }
 
+/* marchio: la "G" a pista di circuito di img/logo.svg (la stessa della favicon) */
 .brand-mark {
-  width: 24px; height: 24px;
-  border-radius: 6px;
-  background: var(--accent);
-  position: relative;
+  width: 28px; height: 28px;
   flex-shrink: 0;
-  box-shadow: 0 0 18px rgba(230, 57, 70, 0.35);
+  background: url("../img/logo.svg") center / contain no-repeat;
+  filter: drop-shadow(0 0 10px rgba(230, 57, 70, 0.35));
+  transition: filter 0.3s var(--ease), transform 0.3s var(--ease);
 }
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border-radius: 3px;
-  background: var(--bg);
-}
+.brand:hover .brand-mark { filter: drop-shadow(0 0 16px rgba(230, 57, 70, 0.6)); transform: rotate(-8deg); }
 
 .brand-name {
   font-size: 16px;

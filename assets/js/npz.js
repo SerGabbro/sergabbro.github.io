@@ -1,166 +1,134 @@
 /* =========================================================
    GABBRO — npz.js
-   Lettore di file .npz di NumPy (np.savez / np.savez_compressed)
-   interamente nel browser, senza dipendenze.
+   Minimal NumPy .npz reader/writer for the browser, no dependencies.
 
-   Un .npz è uno zip di file .npy: si legge la directory
-   centrale (anche zip64, che NumPy usa sempre in scrittura),
-   si decomprimono le voci con DecompressionStream e si
-   interpreta l'intestazione .npy di ciascun array.
+   An .npz file is a zip archive of .npy files. Reading walks the
+   zip central directory, inflates each entry with the native
+   DecompressionStream and parses the .npy header. Writing builds
+   the .npy bytes, deflates them with CompressionStream and lays
+   out a plain (non-zip64) archive that np.load reads.
 
-   Lettura: f4, f8, c8, c16, i1–i8, u1–u8, b1, U.
-   Scrittura (Npz.scrivi): f4, f8, c8, c16, U; zip compresso
-   senza zip64, leggibile da np.load.
-   I complessi restano interlacciati (re, im, re, im, …).
+   Supported dtypes: f4, f8, c8, c16 and fixed-width unicode (U).
+   Complex arrays stay interleaved (re, im, re, im, …).
    ========================================================= */
 (() => {
   'use strict';
 
-  const u16 = (v, o) => v.getUint16(o, true);
-  const u32 = (v, o) => v.getUint32(o, true);
-  const u64 = (v, o) => Number(v.getBigUint64(o, true));
+  const u16 = (view, at) => view.getUint16(at, true);
+  const u32 = (view, at) => view.getUint32(at, true);
 
-  /* ---------- zip ---------- */
+  const SIG_LOCAL = 0x04034b50, SIG_CENTRAL = 0x02014b50, SIG_END = 0x06054b50;
 
-  function voci(buf) {
-    const v = new DataView(buf);
-    // fine della directory centrale: firma 0x06054b50 negli ultimi 64 KiB
-    let eocd = -1;
+  /** Offset of the end-of-central-directory record (it sits in the last 64 KiB). */
+  function findEnd(buf) {
+    const view = new DataView(buf);
     for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) {
-      if (u32(v, i) === 0x06054b50) { eocd = i; break; }
+      if (u32(view, i) === SIG_END) return i;
     }
-    if (eocd < 0) throw new Error('non è un archivio zip/npz');
+    return -1;
+  }
 
-    let n = u16(v, eocd + 10);
-    let cdOff = u32(v, eocd + 16);
-    // zip64: localizzatore subito prima dell'EOCD
-    if ((cdOff === 0xffffffff || n === 0xffff) && eocd >= 20 && u32(v, eocd - 20) === 0x07064b50) {
-      const e64 = u64(v, eocd - 12);
-      n = u64(v, e64 + 32);
-      cdOff = u64(v, e64 + 48);
-    }
+  /* ---------- reading ---------- */
 
-    const out = [];
-    let p = cdOff;
-    const dec = new TextDecoder();
-    for (let k = 0; k < n; k++) {
-      if (u32(v, p) !== 0x02014b50) throw new Error('directory centrale corrotta');
-      const metodo = u16(v, p + 10);
-      let comp = u32(v, p + 20), size = u32(v, p + 24);
-      const lNome = u16(v, p + 28), lExtra = u16(v, p + 30), lComm = u16(v, p + 32);
-      let loc = u32(v, p + 42);
-      const nome = dec.decode(new Uint8Array(buf, p + 46, lNome));
-
-      // campo extra zip64 (id 0x0001): contiene solo i valori saturati, in quest'ordine
-      let e = p + 46 + lNome;
-      const eFine = e + lExtra;
-      while (e + 4 <= eFine) {
-        const id = u16(v, e), len = u16(v, e + 2);
-        if (id === 0x0001) {
-          let q = e + 4;
-          if (size === 0xffffffff) { size = u64(v, q); q += 8; }
-          if (comp === 0xffffffff) { comp = u64(v, q); q += 8; }
-          if (loc === 0xffffffff) { loc = u64(v, q); }
-        }
-        e += 4 + len;
-      }
-      out.push({ nome, metodo, comp, size, loc });
-      p += 46 + lNome + lExtra + lComm;
-    }
-
-    // l'inizio dei dati dipende dall'intestazione locale (il suo extra può differire)
-    for (const x of out) {
-      if (u32(v, x.loc) !== 0x04034b50) throw new Error(`intestazione locale corrotta: ${x.nome}`);
-      x.dati = x.loc + 30 + u16(v, x.loc + 26) + u16(v, x.loc + 28);
+  /** Zip entries: { name, method, compressedSize, dataStart }. */
+  function entries(buf) {
+    const view = new DataView(buf), end = findEnd(buf);
+    if (end < 0) throw new Error('non è un archivio zip');
+    const count = u16(view, end + 10), out = [], dec = new TextDecoder();
+    let p = u32(view, end + 16);
+    for (let k = 0; k < count; k++) {
+      if (u32(view, p) !== SIG_CENTRAL) throw new Error('directory centrale corrotta');
+      const nameLen = u16(view, p + 28), extraLen = u16(view, p + 30), commentLen = u16(view, p + 32);
+      const local = u32(view, p + 42);
+      if (u32(view, local) !== SIG_LOCAL) throw new Error('intestazione locale corrotta');
+      out.push({
+        name: dec.decode(new Uint8Array(buf, p + 46, nameLen)),
+        method: u16(view, p + 10),
+        compressedSize: u32(view, p + 20),
+        // the local header has its own name/extra lengths, which may differ from the central ones
+        dataStart: local + 30 + u16(view, local + 26) + u16(view, local + 28),
+      });
+      p += 46 + nameLen + extraLen + commentLen;
     }
     return out;
   }
 
-  async function estrai(buf, x) {
-    const grezzi = new Uint8Array(buf, x.dati, x.comp);
-    if (x.metodo === 0) return grezzi.slice().buffer;
-    if (x.metodo !== 8) throw new Error(`compressione zip non supportata (${x.metodo}) in ${x.nome}`);
-    if (typeof DecompressionStream === 'undefined') throw new Error('il browser non supporta DecompressionStream');
-    const s = new Blob([grezzi]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-    return new Response(s).arrayBuffer();
+  async function extract(buf, entry) {
+    const raw = new Uint8Array(buf, entry.dataStart, entry.compressedSize);
+    if (entry.method === 0) return raw.slice().buffer;
+    if (entry.method !== 8) throw new Error(`compressione zip non supportata in ${entry.name}`);
+    const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Response(stream).arrayBuffer();
   }
 
-  /* ---------- npy ---------- */
+  const TYPED = { f4: Float32Array, f8: Float64Array, c8: Float32Array, c16: Float64Array };
 
-  const TIPI = {
-    f4: Float32Array, f8: Float64Array,
-    c8: Float32Array, c16: Float64Array,
-    i1: Int8Array, i2: Int16Array, i4: Int32Array, i8: BigInt64Array,
-    u1: Uint8Array, u2: Uint16Array, u4: Uint32Array, u8: BigUint64Array,
-    b1: Uint8Array,
-  };
-
-  function npy(buf, nome) {
-    const b = new Uint8Array(buf);
-    if (b[0] !== 0x93 || String.fromCharCode(...b.subarray(1, 6)) !== 'NUMPY') {
-      throw new Error(`${nome}: non è un file .npy`);
+  /** One .npy file → { dtype, shape, fortran, complex, data }. */
+  function parseNpy(buf, name) {
+    const bytes = new Uint8Array(buf), view = new DataView(buf);
+    if (bytes[0] !== 0x93 || String.fromCharCode(...bytes.subarray(1, 6)) !== 'NUMPY') {
+      throw new Error(`${name}: non è un file .npy`);
     }
-    const v = new DataView(buf);
-    const ver = b[6];
-    const lh = ver === 1 ? u16(v, 8) : u32(v, 8);
-    const inizio = ver === 1 ? 10 : 12;
-    const h = new TextDecoder(ver >= 3 ? 'utf-8' : 'latin1').decode(b.subarray(inizio, inizio + lh));
+    const major = bytes[6];
+    const headerLen = major === 1 ? u16(view, 8) : u32(view, 8);
+    const start = major === 1 ? 10 : 12;
+    const header = new TextDecoder(major >= 3 ? 'utf-8' : 'latin1').decode(bytes.subarray(start, start + headerLen));
 
-    const descr = /'descr'\s*:\s*'([^']+)'/.exec(h);
-    const forma = /'shape'\s*:\s*\(([^)]*)\)/.exec(h);
-    if (!descr || !forma) throw new Error(`${nome}: intestazione .npy non riconosciuta (array strutturato?)`);
-    const fortran = /'fortran_order'\s*:\s*True/.test(h);
-    const shape = forma[1].split(',').map(s => s.trim()).filter(Boolean).map(Number);
-    const n = shape.reduce((a, c) => a * c, 1);
+    const descr = /'descr'\s*:\s*'([^']+)'/.exec(header);
+    const shapeMatch = /'shape'\s*:\s*\(([^)]*)\)/.exec(header);
+    if (!descr || !shapeMatch) throw new Error(`${name}: intestazione .npy non riconosciuta`);
+    const fortran = /'fortran_order'\s*:\s*True/.test(header);
+    const shape = shapeMatch[1].split(',').map(s => s.trim()).filter(Boolean).map(Number);
+    const count = shape.reduce((a, c) => a * c, 1);
+    const offset = start + headerLen;
 
-    if (/O/.test(descr[1])) {
-      throw new Error(`${nome}: array di oggetti Python (pickle), non leggibile fuori da Python: salvalo come array numerico`);
-    }
-    const m = /^([<>|=])([a-zA-Z])(\d+)$/.exec(descr[1]);
-    if (!m) throw new Error(`${nome}: tipo ${descr[1]} non supportato`);
-    const [, ordine, tipo, larg] = m;
-    if (ordine === '>' && +larg > 1) throw new Error(`${nome}: big-endian non supportato`);
+    const m = /^[<|=]([a-zA-Z])(\d+)$/.exec(descr[1]);
+    if (!m) throw new Error(`${name}: tipo ${descr[1]} non supportato`);
+    const [, kind, width] = m;
 
-    const off = inizio + lh;
-    if (tipo === 'U') {                       // stringhe UTF-32LE a larghezza fissa
-      const w = +larg, dv = new DataView(buf, off), out = [];
-      for (let i = 0; i < n; i++) {
+    if (kind === 'U') {                                   // fixed-width UTF-32LE strings
+      const w = +width, chars = new DataView(buf, offset), data = [];
+      for (let i = 0; i < count; i++) {
         let s = '';
         for (let j = 0; j < w; j++) {
-          const c = dv.getUint32((i * w + j) * 4, true);
+          const c = chars.getUint32((i * w + j) * 4, true);
           if (!c) break;
           s += String.fromCodePoint(c);
         }
-        out.push(s);
+        data.push(s);
       }
-      return { dtype: descr[1], shape, fortran, complesso: false, data: out };
+      return { dtype: descr[1], shape, fortran, complex: false, data };
     }
 
-    const chiave = tipo.toLowerCase() + larg;
-    const T = TIPI[chiave === 'b1' ? 'b1' : chiave];
-    if (!T) throw new Error(`${nome}: tipo ${descr[1]} non supportato`);
-    const complesso = tipo === 'c';
-    const len = complesso ? 2 * n : n;
-    // copia allineata: l'offset dei dati non è sempre multiplo della dimensione dell'elemento
-    const data = new T(buf.slice(off, off + len * T.BYTES_PER_ELEMENT));
-    return { dtype: descr[1], shape, fortran, complesso, data };
+    const Typed = TYPED[kind + width];
+    if (!Typed) throw new Error(`${name}: tipo ${descr[1]} non supportato`);
+    const complex = kind === 'c', len = complex ? 2 * count : count;
+    // copy: the data offset is not always aligned to the element size
+    const data = new Typed(buf.slice(offset, offset + len * Typed.BYTES_PER_ELEMENT));
+    return { dtype: descr[1], shape, fortran, complex, data };
   }
 
-  /* ---------- API ---------- */
-
-  /** Legge un .npz (ArrayBuffer) → { nome_array: { dtype, shape, fortran, complesso, data } } */
-  async function leggiNpz(buf) {
+  /** .npz ArrayBuffer → { arrayName: parsed .npy }. */
+  async function read(buf) {
     const out = {};
-    for (const x of voci(buf)) {
-      if (!x.nome.endsWith('.npy')) continue;
-      out[x.nome.slice(0, -4)] = npy(await estrai(buf, x), x.nome);
+    for (const entry of entries(buf)) {
+      if (!entry.name.endsWith('.npy')) continue;
+      out[entry.name.slice(0, -4)] = parseNpy(await extract(buf, entry), entry.name);
     }
     return out;
   }
 
-  /* ---------- scrittura ---------- */
+  /** The zip archive comment ('' if there is none). */
+  function comment(buf) {
+    const end = findEnd(buf);
+    if (end < 0) return '';
+    const view = new DataView(buf);
+    return new TextDecoder().decode(new Uint8Array(buf, end + 22, u16(view, end + 20)));
+  }
 
-  const CRC = (() => {
+  /* ---------- writing ---------- */
+
+  const CRC_TABLE = (() => {
     const t = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
       let c = n;
@@ -169,77 +137,79 @@
     }
     return t;
   })();
-  function crc32(b) {
+
+  function crc32(bytes) {
     let c = 0xffffffff;
-    for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xff] ^ (c >>> 8);
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
     return (c ^ 0xffffffff) >>> 0;
   }
 
-  /** Un array → byte .npy v1.0. `a` = { dtype: '<f8'|'<f4'|'<c8'|'<c16'|'<U', shape: [...], data }.
-      Per i complessi `data` è interlacciato (re, im); per '<U' è un array di stringhe. */
-  function scriviNpy(a) {
-    let corpo, descr = a.dtype;
-    if (a.dtype === '<U') {
-      const cps = a.data.map(s => [...s].map(c => c.codePointAt(0)));
-      const w = Math.max(1, ...cps.map(c => c.length));
+  /** { dtype: '<f8'|'<f4'|'<c8'|'<c16'|'<U', shape, data } → .npy v1.0 bytes.
+      Complex data is interleaved (re, im); '<U' data is an array of strings. */
+  function buildNpy(arr) {
+    let body, descr = arr.dtype;
+    if (arr.dtype === '<U') {
+      const codes = arr.data.map(s => [...s].map(c => c.codePointAt(0)));
+      const w = Math.max(1, ...codes.map(c => c.length));
       descr = `<U${w}`;
-      const u = new Uint32Array(cps.length * w);
-      cps.forEach((c, i) => u.set(c, i * w));
-      corpo = new Uint8Array(u.buffer);
+      const u = new Uint32Array(codes.length * w);
+      codes.forEach((c, i) => u.set(c, i * w));
+      body = new Uint8Array(u.buffer);
     } else {
-      const T = { '<f8': Float64Array, '<f4': Float32Array, '<c16': Float64Array, '<c8': Float32Array }[a.dtype];
-      if (!T) throw new Error(`scrittura del tipo ${a.dtype} non supportata`);
-      const v = a.data instanceof T ? a.data : T.from(a.data);
-      corpo = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+      const Typed = { '<f8': Float64Array, '<f4': Float32Array, '<c16': Float64Array, '<c8': Float32Array }[arr.dtype];
+      if (!Typed) throw new Error(`scrittura del tipo ${arr.dtype} non supportata`);
+      const v = arr.data instanceof Typed ? arr.data : Typed.from(arr.data);
+      body = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
     }
-    const forma = a.shape.length === 1 ? `(${a.shape[0]},)` : `(${a.shape.join(', ')})`;
-    let h = `{'descr': '${descr}', 'fortran_order': False, 'shape': ${forma}, }`;
-    // intestazione allineata a 64 byte e chiusa da \n, come fa NumPy
-    h += ' '.repeat(63 - ((10 + h.length) % 64)) + '\n';
-    const out = new Uint8Array(10 + h.length + corpo.length);
-    out.set([0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59, 1, 0, h.length & 0xff, h.length >> 8]);
-    for (let i = 0; i < h.length; i++) out[10 + i] = h.charCodeAt(i);
-    out.set(corpo, 10 + h.length);
+    const shape = arr.shape.length === 1 ? `(${arr.shape[0]},)` : `(${arr.shape.join(', ')})`;
+    let header = `{'descr': '${descr}', 'fortran_order': False, 'shape': ${shape}, }`;
+    // like NumPy: pad the header with spaces so the data starts on a 64-byte boundary, end with \n
+    header += ' '.repeat(63 - ((10 + header.length) % 64)) + '\n';
+    const out = new Uint8Array(10 + header.length + body.length);
+    out.set([0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59, 1, 0, header.length & 0xff, header.length >> 8]);
+    for (let i = 0; i < header.length; i++) out[10 + i] = header.charCodeAt(i);
+    out.set(body, 10 + header.length);
     return out;
   }
 
-  async function comprimi(b) {
-    const s = new Blob([b]).stream().pipeThrough(new CompressionStream('deflate-raw'));
-    return new Uint8Array(await new Response(s).arrayBuffer());
+  async function deflate(bytes) {
+    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
   }
 
-  /** { nome: array } → Blob .npz compresso (come np.savez_compressed). */
-  async function scriviNpz(arrays) {
-    const enc = new TextEncoder(), parti = [], centrale = [];
-    let off = 0;
-    for (const [nome, a] of Object.entries(arrays)) {
-      const raw = scriviNpy(a), nomeB = enc.encode(`${nome}.npy`);
-      const dati = typeof CompressionStream === 'undefined' ? raw : await comprimi(raw);
-      const metodo = dati === raw ? 0 : 8, crc = crc32(raw);
-      if (raw.length >= 0xffffffff) throw new Error(`${nome}: array troppo grande per uno zip senza zip64`);
+  /** { name: array } → compressed .npz Blob (like np.savez_compressed). Key order is
+      archive order; `comment` goes into the zip comment (the .rfm format uses it). */
+  async function write(arrays, { comment: text = '' } = {}) {
+    const enc = new TextEncoder(), locals = [], centrals = [];
+    let offset = 0;
+    for (const [name, arr] of Object.entries(arrays)) {
+      const raw = buildNpy(arr), nameBytes = enc.encode(`${name}.npy`);
+      const data = await deflate(raw), crc = crc32(raw);
 
-      const loc = new DataView(new ArrayBuffer(30));
-      loc.setUint32(0, 0x04034b50, true); loc.setUint16(4, 20, true); loc.setUint16(8, metodo, true);
-      loc.setUint16(12, 0x21, true);                       // 1980-01-01, come NumPy
-      loc.setUint32(14, crc, true); loc.setUint32(18, dati.length, true); loc.setUint32(22, raw.length, true);
-      loc.setUint16(26, nomeB.length, true);
-      parti.push(new Uint8Array(loc.buffer), nomeB, dati);
+      const local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, SIG_LOCAL, true); local.setUint16(4, 20, true); local.setUint16(8, 8, true);
+      local.setUint16(12, 0x21, true);                          // date 1980-01-01, like NumPy
+      local.setUint32(14, crc, true); local.setUint32(18, data.length, true); local.setUint32(22, raw.length, true);
+      local.setUint16(26, nameBytes.length, true);
+      locals.push(new Uint8Array(local.buffer), nameBytes, data);
 
-      const cd = new DataView(new ArrayBuffer(46));
-      cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true);
-      cd.setUint16(10, metodo, true); cd.setUint16(14, 0x21, true);
-      cd.setUint32(16, crc, true); cd.setUint32(20, dati.length, true); cd.setUint32(24, raw.length, true);
-      cd.setUint16(28, nomeB.length, true); cd.setUint32(42, off, true);
-      centrale.push(new Uint8Array(cd.buffer), nomeB);
-      off += 30 + nomeB.length + dati.length;
+      const central = new DataView(new ArrayBuffer(46));
+      central.setUint32(0, SIG_CENTRAL, true); central.setUint16(4, 20, true); central.setUint16(6, 20, true);
+      central.setUint16(10, 8, true); central.setUint16(14, 0x21, true);
+      central.setUint32(16, crc, true); central.setUint32(20, data.length, true); central.setUint32(24, raw.length, true);
+      central.setUint16(28, nameBytes.length, true); central.setUint32(42, offset, true);
+      centrals.push(new Uint8Array(central.buffer), nameBytes);
+      offset += 30 + nameBytes.length + data.length;
     }
-    const lungCd = centrale.reduce((s, b) => s + b.length, 0);
-    const eocd = new DataView(new ArrayBuffer(22));
-    eocd.setUint32(0, 0x06054b50, true);
-    eocd.setUint16(8, centrale.length / 2, true); eocd.setUint16(10, centrale.length / 2, true);
-    eocd.setUint32(12, lungCd, true); eocd.setUint32(16, off, true);
-    return new Blob([...parti, ...centrale, new Uint8Array(eocd.buffer)], { type: 'application/octet-stream' });
+    const centralSize = centrals.reduce((s, b) => s + b.length, 0), count = centrals.length / 2;
+    const commentBytes = enc.encode(text);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, SIG_END, true);
+    end.setUint16(8, count, true); end.setUint16(10, count, true);
+    end.setUint32(12, centralSize, true); end.setUint32(16, offset, true);
+    end.setUint16(20, commentBytes.length, true);
+    return new Blob([...locals, ...centrals, new Uint8Array(end.buffer), commentBytes], { type: 'application/octet-stream' });
   }
 
-  window.Npz = { leggi: leggiNpz, scrivi: scriviNpz, npy };
+  window.Npz = { read, write, comment };
 })();

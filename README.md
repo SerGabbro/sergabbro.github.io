@@ -16,7 +16,8 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `diagrams.css` — schemi HTML/CSS usati negli articoli
   - `math-canvas.css` — stile dello strumento Math Canvas
   - `sampling.css` — Laboratorio di campionamento (usa anche `base.css` e `article.css`)
-  - `antenne.css` — Laboratorio antenne (usa anche `sampling.css` per layout e controlli)
+  - `antenna.css` — Laboratorio antenne (usa anche `sampling.css` per layout e controlli)
+- `assets/img/logo.svg` — icona del sito (favicon e marchio nella barra): una "G" disegnata come pista di circuito stampato
 - `assets/js/`
   - `sky.js` — sfondo a costellazioni (tutte le pagine)
   - `nav.js` — menu a schermo intero su mobile (tutte le pagine)
@@ -24,9 +25,9 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `article.js` — indice, ancore, barra di lettura, copia del codice
   - `math-canvas.js` — logica del Math Canvas
   - `sampling.js` — Laboratorio di campionamento: segnali, spettri, ricostruzione, DFT/IFFT
-  - `npz.js` — lettura e scrittura di file `.npz` di NumPy nel browser (zip/zip64 + `.npy`, nessuna dipendenza)
-  - `antenne.js` — Laboratorio antenne: Friis, metriche, audit, confronto, lobo 3D; grafici con Plotly (CDN)
-  - `pacchetto.js` — Laboratorio antenne, sezione Impacchetta: dai file grezzi del VNA (CSV/S2P per angolo) al pacchetto `.npz` standard v1 (`meta` JSON con nome, distanza, note, acquisizione, SHA-256 dei grezzi)
+  - `npz.js` — lettura e scrittura di file `.npz` di NumPy nel browser (zip + `.npy`, nessuna dipendenza)
+  - `antenna.js` — Laboratorio antenne, analisi: Friis, audit, confronto, lobo 3D, carta di Smith; grafici con Plotly (CDN)
+  - `antenna-pack.js` — Laboratorio antenne, impacchettamento: dai file grezzi del VNA (CSV/S2P per angolo) al formato `.rfm` v1 (NPZ con firma `RFM1` e `meta` JSON; si apre anche con `np.load`)
 
 ### Nuovo articolo
 

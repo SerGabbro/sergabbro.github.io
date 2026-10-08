@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laboratorio antenne — Gabbro</title>
+  <meta name="description" content="Analisi di misure di diagrammi di radiazione da file .rfm di parametri S: guadagno con Friis, diagrammi polari, superfici angolo × frequenza, confronto tra misure, lobo 3D, carta di Smith e audit fisico. Tutto nel browser, i file non lasciano il computer.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Laboratorio antenne">
+  <meta property="og:url" content="https://sergabbro.github.io/tools/antenna.html">
+  <link rel="icon" type="image/svg+xml" href="../assets/img/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/article.css">
+  <link rel="stylesheet" href="../assets/css/sampling.css">
+  <link rel="stylesheet" href="../assets/css/antenna.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#content">Vai al contenuto</a>
+
+  <header class="navbar">
+    <div class="wrap wrap-wide">
+      <a href="../index.html" class="brand" aria-label="Gabbro, home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Gabbro</span>
+        <span class="brand-role">ing. elettronico</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti" aria-current="page">Strumenti</a>
+        <a href="../index.html#chi-sono">Chi sono</a>
+        <a href="https://github.com/sergabbro" class="ext" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="content" class="wrap wrap-wide lab-page">
+
+    <header class="lab-head rise">
+      <nav class="breadcrumb" aria-label="Percorso">
+        <a href="../index.html">gabbro</a><span class="sep">/</span>
+        <a href="../index.html#strumenti">strumenti</a><span class="sep">/</span>
+        <span>antenne</span>
+      </nav>
+      <span class="eyebrow">Strumento · RF</span>
+      <h1>Laboratorio antenne</h1>
+      <p class="lead">Analisi di misure di diagramma di radiazione a partire dai parametri S acquisiti con un VNA su una griglia angolo × frequenza. Guadagno con la formula di Friis, diagrammi polari animati in frequenza, superfici, confronto fra misure, lobo 3D da due tagli ortogonali, carta di Smith e controlli di passività. Le misure si analizzano come pacchetti .rfm, creati qui dalle cartelle grezze del VNA. I file vengono letti dal browser e non lasciano il computer.</p>
+    </header>
+
+    <div class="seg modes rise rise-1" role="radiogroup" aria-label="Sezione" id="modes">
+      <button type="button" role="radio" data-v="analyze" aria-checked="true">Analizza pacchetti</button>
+      <button type="button" role="radio" data-v="pack" aria-checked="false">Impacchetta grezzi</button>
+    </div>
+
+    <!-- ════════════════ ANALYZE ════════════════ -->
+    <div data-section="analyze">
+
+      <!-- shown until at least one package is loaded -->
+      <section class="drop rise rise-1" id="drop" aria-label="Carica i pacchetti">
+        <div class="drop-inner">
+          <span class="drop-icon" aria-hidden="true"></span>
+          <h2>Trascina qui i file <code>.rfm</code></h2>
+          <p>Il formato <strong>.rfm</strong> (RF Measurement) si crea nella sezione <a href="#" data-goto="pack">Impacchetta grezzi</a> a partire dalle cartelle del VNA: contiene i parametri S, la distanza e le note. Dentro è un archivio NumPy, quindi si apre anche con <code>np.load</code>.</p>
+          <div class="drop-actions">
+            <label class="btn btn-primary"><input type="file" id="in-files" accept=".rfm" multiple hidden>Scegli file .rfm</label>
+          </div>
+          <p class="drop-error" id="drop-error" role="alert"></p>
+        </div>
+      </section>
+
+      <div class="lab-wrap rise rise-1" id="lab" hidden>
+
+        <div class="lab-top">
+          <p class="lab-error" id="lab-error" role="alert"></p>
+
+          <section class="meas" aria-labelledby="meas-name">
+            <div class="meas-id">
+              <span class="eyebrow">Misura</span>
+              <h2 class="meas-name" id="meas-name"></h2>
+              <p class="meas-notes" id="meas-notes" hidden></p>
+            </div>
+            <dl class="meas-info" id="meas-info"></dl>
+          </section>
+        </div>
+
+        <nav class="tabs" role="tablist" aria-label="Viste" id="tabs">
+          <span class="tabs-indicator" aria-hidden="true"></span>
+          <button role="tab" data-tab="surface" aria-selected="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 11l3-3 3 2 3-5 3 3"/><path d="M2 14h12M2 14V2"/></svg><span>Angolo × frequenza</span></button>
+          <button role="tab" data-tab="polar" aria-selected="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 8c-2.2-1.6-2.4-5 0-6.2C10.4 3 10.2 6.4 8 8z"/></svg><span>Polare</span></button>
+          <button role="tab" data-tab="freq" aria-selected="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 12c2-6 4-7 6-4s4 2 6-5"/><path d="M2 14h12"/></svg><span>Guadagno vs f</span></button>
+          <button role="tab" data-tab="compare" aria-selected="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M11 3v10M3 6h4M9 10h4"/></svg><span>Confronto</span></button>
+          <button role="tab" data-tab="lobe" aria-selected="false"><svg viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="8" cy="9" rx="4" ry="5.5"/><path d="M4 9h8M8 3.5v11"/></svg><span>Lobo 3D</span></button>
+          <button role="tab" data-tab="reflection" aria-selected="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><circle cx="10.5" cy="8" r="3.5"/><path d="M2 8h12"/></svg><span>Riflessione · Smith</span></button>
+          <button role="tab" data-tab="audit" aria-selected="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8l5 2v4c0 3-2.2 5.2-5 6.4-2.8-1.2-5-3.4-5-6.4v-4z"/><path d="M5.6 8.2l1.7 1.7 3.2-3.4"/></svg><span>Audit</span></button>
+        </nav>
+
+        <div class="lab">
+
+          <!-- each group with data-views is shown only in the listed tabs -->
+          <aside class="lab-side" aria-label="Parametri">
+
+            <section class="ctl-group">
+              <h2 class="ctl-title">Misura</h2>
+              <label class="field">
+                <span class="field-label">Pacchetto</span>
+                <select id="sel-measure"></select>
+              </label>
+              <label class="field" id="distance-field" data-views="surface polar freq compare lobe">
+                <span class="field-row"><span class="field-label">Distanza TX–RX</span><span class="unit">m</span></span>
+                <input type="number" id="in-distance" min="0.001" step="0.01">
+                <span class="field-note" id="distance-note"></span>
+              </label>
+              <div class="field add-row">
+                <label class="link-btn"><input type="file" id="in-files-more" accept=".rfm" multiple hidden>+ aggiungi file .rfm</label>
+                <span class="field-note" id="measure-count"></span>
+              </div>
+            </section>
+
+            <section class="ctl-group" data-views="polar freq lobe">
+              <h2 class="ctl-title">Trasmissione</h2>
+              <div class="seg" role="radiogroup" aria-label="Parametro di trasmissione" id="seg-tx">
+                <button type="button" role="radio" data-v="S21" aria-checked="true">S21</button>
+                <button type="button" role="radio" data-v="S12" aria-checked="false">S12</button>
+              </div>
+            </section>
+
+            <section class="ctl-group" data-views="surface compare">
+              <h2 class="ctl-title">Parametro</h2>
+              <div class="seg" role="radiogroup" aria-label="Parametro" id="seg-param">
+                <button type="button" role="radio" data-v="S21" aria-checked="true">S21</button>
+                <button type="button" role="radio" data-v="S12" aria-checked="false">S12</button>
+                <button type="button" role="radio" data-v="S11" aria-checked="false">S11</button>
+                <button type="button" role="radio" data-v="S22" aria-checked="false">S22</button>
+              </div>
+              <p class="field-note">Trasmissione: guadagno (Friis) o |S| in dB. Riflessione: |S11|, |S22| in dB.</p>
+            </section>
+
+            <section class="ctl-group" data-views="compare">
+              <h2 class="ctl-title">Confronto</h2>
+              <div class="field">
+                <span class="field-label">A</span>
+                <output class="readout" id="out-compare-a"></output>
+              </div>
+              <label class="field">
+                <span class="field-label">B (stessa griglia)</span>
+                <select id="sel-compare-b"></select>
+              </label>
+              <label class="field">
+                <span class="field-row"><span class="field-label">Separazione sotto-bande</span><span class="unit" id="split-unit">GHz</span></span>
+                <input type="number" id="in-split" step="0.1" placeholder="nessuna">
+              </label>
+            </section>
+
+            <section class="ctl-group" data-views="lobe">
+              <h2 class="ctl-title">Tagli</h2>
+              <label class="field">
+                <span class="field-label">Taglio a φ = 0°</span>
+                <select id="sel-cut-a"></select>
+              </label>
+              <label class="field">
+                <span class="field-label">Taglio a φ = 90° (ortogonale)</span>
+                <select id="sel-cut-b"></select>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="tg-lobe-db" checked>
+                <span class="toggle-track" aria-hidden="true"></span>
+                <span>Raggio in dB dal pavimento</span>
+              </label>
+            </section>
+
+            <section class="ctl-group" data-views="polar freq lobe reflection">
+              <h2 class="ctl-title">Punto di lavoro</h2>
+              <label class="field" data-views="polar lobe reflection">
+                <span class="field-row"><span class="field-label">Frequenza</span><output id="out-freq"></output></span>
+                <input type="range" id="in-freq" min="0" max="0" step="1" value="0">
+              </label>
+              <label class="field" data-views="polar freq reflection">
+                <span class="field-row"><span class="field-label">Angolo</span><output id="out-angle"></output></span>
+                <input type="range" id="in-angle" min="0" max="0" step="1" value="0">
+              </label>
+              <div class="field play-row" data-views="polar lobe">
+                <button type="button" class="btn play" id="btn-play" aria-pressed="false"><span class="play-icon" aria-hidden="true"></span><span class="play-label">Anima in frequenza</span></button>
+                <div class="seg seg-sm" role="radiogroup" aria-label="Velocità" id="seg-speed">
+                  <button type="button" role="radio" data-v="220" aria-checked="false">lenta</button>
+                  <button type="button" role="radio" data-v="90" aria-checked="true">media</button>
+                  <button type="button" role="radio" data-v="35" aria-checked="false">veloce</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="ctl-group" data-views="polar freq">
+              <h2 class="ctl-title">Sovrapponi</h2>
+              <div class="checklist" id="overlay-list"></div>
+              <p class="field-note">Fino a 4 misure dello stesso tipo (Friis o |S| grezzo).</p>
+            </section>
+
+            <section class="ctl-group" data-views="surface polar lobe">
+              <h2 class="ctl-title">Visualizzazione</h2>
+              <label class="field">
+                <span class="field-row"><span class="field-label">Pavimento</span><output id="out-floor"></output></span>
+                <input type="range" id="in-floor" min="-60" max="-6" step="1" value="-30">
+              </label>
+              <label class="toggle" data-views="polar">
+                <input type="checkbox" id="tg-normalize" checked>
+                <span class="toggle-track" aria-hidden="true"></span>
+                <span>Normalizza al picco (0 dB)</span>
+              </label>
+            </section>
+
+          </aside>
+
+          <section class="lab-main" aria-label="Analisi">
+
+            <div class="panel" data-panel="surface">
+              <figure class="plot">
+                <figcaption class="plot-head">
+                  <h3 id="title-surface">Guadagno su angolo × frequenza</h3>
+                  <div class="seg seg-sm seg-inline" role="radiogroup" aria-label="Scala" id="seg-scale">
+                    <button type="button" role="radio" data-v="db" aria-checked="true">dB</button>
+                    <button type="button" role="radio" data-v="lin" aria-checked="false">lineare</button>
+                  </div>
+                </figcaption>
+                <div class="chart chart-xl" id="chart-surface"></div>
+              </figure>
+            </div>
+
+            <div class="panel" data-panel="polar" hidden>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>Diagramma polare</h3><span class="plot-meta" id="info-polar"></span></figcaption>
+                <div class="chart chart-xl" id="chart-polar"></div>
+              </figure>
+            </div>
+
+            <div class="panel" data-panel="freq" hidden>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>Guadagno in frequenza</h3><span class="plot-meta" id="info-freq"></span></figcaption>
+                <div class="chart chart-md" id="chart-freq"></div>
+              </figure>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>Massimo in frequenza</h3><span class="plot-meta">sul taglio misurato, all'angolo del picco</span></figcaption>
+                <div class="chart chart-sm" id="chart-peak"></div>
+              </figure>
+            </div>
+
+            <div class="panel" data-panel="compare" hidden>
+              <p class="panel-empty" id="compare-empty" hidden>Nessun'altra misura caricata ha la stessa griglia angolo × frequenza.</p>
+              <figure class="plot" id="compare-figure">
+                <figcaption class="plot-head"><h3>Δ = A − B, in potenza lineare</h3></figcaption>
+                <p class="plot-sub plot-meta" id="info-compare"></p>
+                <div class="chart chart-xl" id="chart-compare"></div>
+              </figure>
+              <div class="table-wrap" id="compare-table"></div>
+            </div>
+
+            <div class="panel" data-panel="lobe" hidden>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>Lobo 3D ricostruito</h3><span class="plot-meta" id="info-lobe"></span></figcaption>
+                <div class="chart chart-xl" id="chart-lobe"></div>
+              </figure>
+            </div>
+
+            <div class="panel" data-panel="reflection" hidden>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>Carta di Smith all'angolo scelto</h3><span class="plot-meta" id="info-smith"></span></figcaption>
+                <div class="chart chart-xl" id="chart-smith"></div>
+              </figure>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>|S11| e |S22| in frequenza</h3><span class="plot-meta" id="info-reflection"></span></figcaption>
+                <div class="chart chart-md" id="chart-reflection"></div>
+              </figure>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>Angoli adattati (|S| ≤ −10 dB) in frequenza</h3><span class="plot-meta" id="info-matched"></span></figcaption>
+                <div class="chart chart-sm" id="chart-matched"></div>
+              </figure>
+            </div>
+
+            <div class="panel" data-panel="audit" hidden>
+              <div class="table-wrap" id="audit-table"></div>
+              <figure class="plot">
+                <figcaption class="plot-head"><h3>Dove sono le violazioni</h3><span class="plot-meta">numero di controlli violati in ogni punto</span></figcaption>
+                <div class="chart chart-lg" id="chart-audit"></div>
+              </figure>
+            </div>
+
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════ PACK ════════════════ -->
+    <section data-section="pack" hidden aria-label="Impacchetta i file grezzi">
+
+      <section class="drop" id="pack-drop" aria-label="Carica i file grezzi">
+        <div class="drop-inner">
+          <span class="drop-icon" aria-hidden="true"></span>
+          <h2>Trascina qui la cartella dei file grezzi</h2>
+          <p>Una cartella per misura, con un file <code>.csv</code> o <code>.s2p</code> per angolo, scritto nel nome (<code>-07.00deg.csv</code>, <code>ParserTouchstonePorts_N.s2p</code> in centesimi di grado, o l'ultimo numero del nome). Gli altri file vengono ignorati. Se trascini una cartella che ne contiene altre, ogni sottocartella diventa una misura.</p>
+          <div class="drop-actions">
+            <label class="btn btn-primary"><input type="file" id="pack-input" webkitdirectory multiple hidden>Scegli cartella</label>
+          </div>
+          <p class="drop-error" id="pack-error" role="alert"></p>
+        </div>
+      </section>
+
+      <div class="pack" id="pack-work" hidden>
+        <div class="pack-items" id="pack-items"></div>
+
+        <div class="pack-actions">
+          <button type="button" class="btn btn-primary" id="pack-create">Crea pacchetti</button>
+          <label class="link-btn"><input type="file" id="pack-input-more" webkitdirectory multiple hidden>+ altra cartella</label>
+          <button type="button" class="link-btn pack-clear" id="pack-clear">svuota</button>
+          <span class="pack-status" id="pack-status" role="status"></span>
+        </div>
+
+        <section class="pack-results" id="pack-results" hidden aria-labelledby="pack-results-title">
+          <header class="pack-results-head">
+            <div>
+              <span class="eyebrow">Pronti</span>
+              <h2 id="pack-results-title"></h2>
+              <p id="pack-results-total"></p>
+            </div>
+            <div class="pack-results-actions">
+              <button type="button" class="btn" id="pack-download-all">Scarica tutti</button>
+              <button type="button" class="btn btn-primary" id="pack-open">Apri nell'analisi <span class="arr" aria-hidden="true">→</span></button>
+            </div>
+          </header>
+          <ul class="pack-list" id="pack-list"></ul>
+        </section>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- confirmation dialog, driven by AntennaLab.confirm in antenna.js -->
+  <dialog class="dialog" id="dialog" aria-labelledby="dialog-title">
+    <form method="dialog" class="dialog-inner">
+      <span class="eyebrow" id="dialog-eyebrow"></span>
+      <h2 id="dialog-title"></h2>
+      <p class="dialog-text" id="dialog-text"></p>
+      <ul class="dialog-list" id="dialog-list"></ul>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="btn" id="dialog-cancel">Annulla</button>
+        <button type="submit" value="ok" class="btn btn-primary" id="dialog-ok">Conferma</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="site-footer">
+    <div class="wrap wrap-wide">
+      <span>© 2025–2026 Gabbro</span>
+      <nav aria-label="Piè di pagina">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="https://github.com/sergabbro" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly.min.js" defer></script>
+  <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/nav.js" defer></script>
+  <script src="../assets/js/npz.js" defer></script>
+  <script src="../assets/js/antenna.js" defer></script>
+  <script src="../assets/js/antenna-pack.js" defer></script>
+</body>
+</html>
