@@ -8,7 +8,7 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
 
 - `index.html` — home
 - `articles/` — articoli
-- `tools/` — strumenti interattivi (Math Canvas, Laboratorio di campionamento)
+- `tools/` — strumenti interattivi (Math Canvas, Laboratorio di campionamento, Laboratorio antenne)
 - `assets/css/`
   - `base.css` — token, reset, navbar, footer, elementi comuni (tutte le pagine)
   - `home.css` — hero, card, "Chi sono"
@@ -16,6 +16,7 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `diagrams.css` — schemi HTML/CSS usati negli articoli
   - `math-canvas.css` — stile dello strumento Math Canvas
   - `sampling.css` — Laboratorio di campionamento (usa anche `base.css` e `article.css`)
+  - `antenne.css` — Laboratorio antenne (usa anche `sampling.css` per layout e controlli)
 - `assets/js/`
   - `sky.js` — sfondo a costellazioni (tutte le pagine)
   - `nav.js` — menu a schermo intero su mobile (tutte le pagine)
@@ -23,6 +24,9 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `article.js` — indice, ancore, barra di lettura, copia del codice
   - `math-canvas.js` — logica del Math Canvas
   - `sampling.js` — Laboratorio di campionamento: segnali, spettri, ricostruzione, DFT/IFFT
+  - `npz.js` — lettura e scrittura di file `.npz` di NumPy nel browser (zip/zip64 + `.npy`, nessuna dipendenza)
+  - `antenne.js` — Laboratorio antenne: Friis, metriche, audit, confronto, lobo 3D; grafici con Plotly (CDN)
+  - `pacchetto.js` — Laboratorio antenne, sezione Impacchetta: dai file grezzi del VNA (CSV/S2P per angolo) al pacchetto `.npz` standard v1 (`meta` JSON con nome, distanza, note, acquisizione, SHA-256 dei grezzi)
 
 ### Nuovo articolo
 
@@ -57,7 +61,7 @@ Quando riscrivo il testo di una pagina elimino quella riga (e il commento sopra)
 grep -l 'class="ai-flag"' *.html articles/*.html
 ```
 
-Sito statico, nessuna dipendenza di build.
+Sito statico, nessuna dipendenza di build. Unica libreria esterna: Plotly da cdnjs, solo nel Laboratorio antenne.
 
 ## Contatti
 
