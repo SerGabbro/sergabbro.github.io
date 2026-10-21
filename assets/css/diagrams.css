@@ -232,3 +232,63 @@
   .node-grid { grid-template-columns: 1fr; }
   .diagram { padding: 24px 12px 14px; }
 }
+
+/* =========================================================
+   MAPPA DEGLI OFFSET SU DISCO (rpi5_nvme_settori)
+   ========================================================= */
+.lba-map {
+  display: grid;
+  gap: 14px;
+  padding: 0 4px;
+  font-family: var(--mono);
+}
+.lba-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+.lba-track {
+  position: relative;
+  height: 28px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+.lba-seg {
+  position: absolute;
+  top: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 10.5px;
+}
+.lba-mbr { background: var(--text-faint); }
+.lba-fat {
+  background: rgba(167, 139, 250, 0.14);
+  border-left: 2px solid var(--accent-4);
+  color: var(--accent-4);
+}
+.lba-mark {
+  position: absolute;
+  top: -1px; bottom: -1px;
+  border-left: 2px solid;
+  padding-left: 6px;
+  display: flex;
+  align-items: center;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.lba-ok  { border-color: var(--accent-ok); color: var(--accent-ok); }
+.lba-bad { border-color: var(--accent);    color: #f87171; }
+.lba-axis {
+  position: relative;
+  height: 14px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.lba-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.lba-axis span:last-child { transform: translateX(-100%); }

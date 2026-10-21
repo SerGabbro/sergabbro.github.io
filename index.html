@@ -50,6 +50,8 @@
             <a class="btn btn-primary" href="#articoli">Leggi gli articoli <span class="arr" aria-hidden="true">→</span></a>
             <a class="btn" href="tools/math.html">Math Canvas <span class="arr" aria-hidden="true">→</span></a>
           </div>
+          <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
+          <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
         </div>
 
         <aside class="readout rise rise-4" aria-label="Parametri dello sfondo">
@@ -70,10 +72,28 @@
       <div class="wrap">
         <div class="section-head">
           <h2 class="section-title" id="t-articoli"><span class="idx">01</span>Articoli</h2>
-          <span class="section-meta">3 pubblicati · dal più recente</span>
+          <span class="section-meta">4 pubblicati · dal più recente</span>
         </div>
 
         <div class="card-list">
+
+          <a href="articles/rpi5_nvme_settori.html" class="card">
+            <span class="card-idx">04</span>
+            <div class="card-body">
+              <div class="card-meta">
+                <time datetime="2026-10-21">21 ott 2026</time>
+              </div>
+              <h3 class="card-title">Raspberry Pi 5 su NVMe: settori da 4096 byte e un'immagine pensata per 512</h3>
+              <p class="card-excerpt">Perché un'immagine di Raspberry Pi OS scritta correttamente non si avvia da un SSD formattato a 4096 byte per settore, come riprodurre il problema con un file e come correggerlo con nvme format. In appendice, i blocchi in esercizio dovuti al PCIe Gen3.</p>
+              <div class="tags">
+                <span class="tag tag-amber">storage</span>
+                <span class="tag tag-cyan">linux</span>
+                <span class="tag tag-gray">raspberry-pi</span>
+                <span class="tag tag-gray">nvme</span>
+              </div>
+            </div>
+            <span class="card-arrow" aria-hidden="true">→</span>
+          </a>
 
           <a href="articles/remote_gaming_tailscale_vdd.html" class="card">
             <span class="card-idx">03</span>
@@ -161,7 +181,7 @@
             <div class="card-body">
               <div class="card-meta"><span>strumento</span><span class="sep"></span><span>canvas 2D</span></div>
               <h3 class="card-title">Laboratorio di campionamento</h3>
-              <p class="card-excerpt">Campionamento di segnali a banda limitata e periodici: repliche spettrali, aliasing, filtro ideale di ricostruzione, mantenimento ZOH e campionamento passa-banda, con il confronto fra teoria e DFT/IFFT.</p>
+              <p class="card-excerpt">Campionamento di segnali standard (sinusoide, due toni, quadra, triangolare, dente di sega): repliche spettrali, aliasing e ricostruzione con filtro passa-basso ideale o di Butterworth, con taglio e ordine impostabili.</p>
               <div class="tags">
                 <span class="tag tag-purple">dsp</span>
                 <span class="tag tag-amber">sampling</span>
@@ -180,6 +200,21 @@
               <div class="tags">
                 <span class="tag tag-red">rf</span>
                 <span class="tag tag-cyan">antenne</span>
+                <span class="tag tag-gray">interattivo</span>
+              </div>
+            </div>
+            <span class="card-arrow" aria-hidden="true">→</span>
+          </a>
+
+          <a href="tools/stft.html" class="card">
+            <span class="card-idx">T4</span>
+            <div class="card-body">
+              <div class="card-meta"><span>strumento</span><span class="sep"></span><span>canvas 2D</span></div>
+              <h3 class="card-title">STFT e FFT a confronto</h3>
+              <p class="card-excerpt">FFT dell'intero segnale e spettrogramma STFT sullo stesso segnale: finestra, lunghezza, overlap e zero-padding, con lo spettro del singolo frame e la verifica della condizione COLA. Segnali di prova o file audio caricati in locale.</p>
+              <div class="tags">
+                <span class="tag tag-purple">dsp</span>
+                <span class="tag tag-amber">stft</span>
                 <span class="tag tag-gray">interattivo</span>
               </div>
             </div>

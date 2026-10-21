@@ -17,6 +17,7 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `math-canvas.css` — stile dello strumento Math Canvas
   - `sampling.css` — Laboratorio di campionamento (usa anche `base.css` e `article.css`)
   - `antenna.css` — Laboratorio antenne (usa anche `sampling.css` per layout e controlli)
+  - `stft.css` — STFT e FFT a confronto (usa anche `sampling.css` per layout e controlli)
 - `assets/img/logo.svg` — icona del sito (favicon e marchio nella barra): una "G" disegnata come pista di circuito stampato
 - `assets/js/`
   - `sky.js` — sfondo a costellazioni (tutte le pagine)
@@ -24,7 +25,8 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `cards.js` — riflesso delle card in home
   - `article.js` — indice, ancore, barra di lettura, copia del codice
   - `math-canvas.js` — logica del Math Canvas
-  - `sampling.js` — Laboratorio di campionamento: segnali, spettri, ricostruzione, DFT/IFFT
+  - `sampling.js` — Laboratorio di campionamento: segnali standard, repliche spettrali, aliasing, ricostruzione con filtro ideale o Butterworth
+  - `stft.js` — STFT e FFT a confronto: FFT radix-2, finestre, overlap, spettrogramma, verifica COLA, caricamento audio
   - `npz.js` — lettura e scrittura di file `.npz` di NumPy nel browser (zip + `.npy`, nessuna dipendenza)
   - `antenna.js` — Laboratorio antenne, analisi: Friis, audit, confronto, lobo 3D, carta di Smith; grafici con Plotly (CDN)
   - `antenna-pack.js` — Laboratorio antenne, impacchettamento: dai file grezzi del VNA (CSV/S2P per angolo) al formato `.rfm` v1 (NPZ con firma `RFM1` e `meta` JSON; si apre anche con `np.load`)
@@ -59,7 +61,7 @@ Le pagine il cui testo è stato scritto dall'IA (sui miei contenuti) mostrano qu
 Quando riscrivo il testo di una pagina elimino quella riga (e il commento sopra). Per vedere quali pagine sono ancora da riscrivere:
 
 ```bash
-grep -l 'class="ai-flag"' *.html articles/*.html
+grep -l 'class="ai-flag"' *.html articles/*.html tools/*.html
 ```
 
 Sito statico, nessuna dipendenza di build. Unica libreria esterna: Plotly da cdnjs, solo nel Laboratorio antenne.

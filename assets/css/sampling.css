@@ -11,9 +11,8 @@
   --p-r0:     #22d3ee;   /* replica centrale */
   --p-rk:     #a78bfa;   /* repliche k ≠ 0 */
   --p-alias:  #e63946;   /* sovrapposizione, errore */
-  --p-filter: #f5a524;   /* filtro ideale */
+  --p-filter: #f5a524;   /* filtro di ricostruzione */
   --p-rec:    #4ade80;   /* ricostruzione */
-  --p-dft:    #f472b6;   /* DFT / IFFT */
 }
 
 .wrap-wide { max-width: 1320px; }
@@ -82,26 +81,6 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-faint);
-}
-
-.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.presets button {
-  padding: 8px 8px;
-  border: 1px solid var(--border-2);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.02);
-  font-family: var(--font);
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.presets button:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.22); }
-.presets button.is-active {
-  color: var(--text);
-  border-color: rgba(var(--glow), 0.6);
-  background: rgba(var(--glow), 0.1);
 }
 
 .field { display: block; margin-bottom: 16px; }
@@ -371,7 +350,6 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.2); }
 .sw-alias  { --c: var(--p-alias); }
 .sw-filter { --c: var(--p-filter); }
 .sw-rec    { --c: var(--p-rec); }
-.sw-dft    { --c: var(--p-dft); }
 
 /* =========================================================
    BARRA RAPIDA (solo mobile)

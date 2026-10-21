@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raspberry Pi 5 su NVMe: settori da 4096 byte e un'immagine pensata per 512 — Gabbro</title>
+  <meta name="description" content="Perché un'immagine di Raspberry Pi OS scritta correttamente con dd non si avvia da un SSD formattato a 4096 byte per settore, come riprodurre il problema senza hardware e come correggerlo con nvme format. In appendice, i blocchi in esercizio con PCIe Gen3.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Raspberry Pi 5 su NVMe: settori da 4096 byte e un'immagine pensata per 512">
+  <meta property="og:url" content="https://sergabbro.github.io/articles/rpi5_nvme_settori.html">
+  <link rel="icon" type="image/svg+xml" href="../assets/img/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/article.css">
+  <link rel="stylesheet" href="../assets/css/diagrams.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
+  <header class="navbar">
+    <div class="wrap">
+      <a href="../index.html" class="brand" aria-label="Gabbro, home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Gabbro</span>
+        <span class="brand-role">ing. elettronico</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
+        <a href="../index.html#articoli" aria-current="page">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="../index.html#chi-sono">Chi sono</a>
+        <a href="https://github.com/sergabbro" class="ext" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+    <div class="progress" aria-hidden="true"></div>
+  </header>
+
+  <main id="contenuto" class="wrap article-layout">
+    <article class="article-shell">
+
+      <nav class="breadcrumb rise" aria-label="Percorso">
+        <a href="../index.html">gabbro</a><span class="sep">/</span>
+        <a href="../index.html#articoli">articoli</a><span class="sep">/</span>
+        <span>rpi5-nvme-settori</span>
+      </nav>
+
+      <header class="article-header rise rise-1">
+        <div class="card-meta">
+          <time datetime="2026-10-21">21 ottobre 2026</time>
+        </div>
+        <h1>Raspberry Pi 5 su NVMe: settori da 4096 byte e un'immagine pensata per 512</h1>
+        <p class="lead">Un'immagine di Raspberry Pi OS scritta senza errori su un SSD NVMe non si avvia, e le partizioni risultano otto volte più grandi del previsto. La causa è la dimensione del settore logico del disco. Il problema si riproduce su un file e si corregge con un comando. In appendice, i blocchi in esercizio dovuti al PCIe Gen3.</p>
+        <div class="tags">
+          <span class="tag tag-amber">storage</span>
+          <span class="tag tag-cyan">linux</span>
+          <span class="tag tag-gray">raspberry-pi</span>
+          <span class="tag tag-gray">nvme</span>
+        </div>
+        <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
+        <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
+      </header>
+
+      <div class="article-body rise rise-2">
+
+        <h2>Il caso</h2>
+
+        <p>Il sistema è un Raspberry Pi 5 con HAT M.2 e un SSD NVMe Sabrent Rocket da 256 GB (controller Phison E12), di recupero. L'obiettivo è avviare il sistema da NVMe, senza scheda SD. La procedura è quella standard: scrittura dell'immagine di Raspberry Pi OS sull'SSD con <code>dd</code> o con Raspberry Pi Imager, ordine di avvio su NVMe, riavvio.</p>
+
+        <p>Il Pi non si avvia, con tre sintomi:</p>
+
+        <ul>
+          <li>il bootloader si ferma con <code>unable to find FAT</code>;</li>
+          <li>da un altro sistema, il mount della prima partizione fallisce con <code>wrong fs type, bad option, bad superblock</code>;</li>
+          <li><code>lsblk</code> e <code>fdisk</code> mostrano una partizione di boot da <strong>4G</strong> e una root da <strong>18.9G</strong>. L'immagine ne prevede 512M e 2,4G.</li>
+        </ul>
+
+        <p>La scrittura termina senza errori e la verifica di Imager è positiva. Il sintomo utile è il terzo: 4G è otto volte 512M, e otto è il rapporto fra 4096 e 512.</p>
+
+        <h2>Settore logico e settore fisico</h2>
+
+        <p>Il sistema operativo non indirizza un disco byte per byte, ma a blocchi numerati: i <em class="term">settori logici</em>. Il numero del settore è l'<em class="term">LBA</em> (<em>Logical Block Address</em>). Il settore logico è la più piccola unità che il disco accetta in lettura e in scrittura, e la sua dimensione la dichiara il dispositivo al kernel.</p>
+
+        <div class="callout callout-def">
+          <strong>512n, 512e, 4Kn</strong>
+          Il <em class="term">settore fisico</em> è l'unità con cui lavora il supporto; il settore logico è quella esposta all'host. Un disco <strong>512n</strong> lavora ed espone 512 byte. Un disco <strong>512e</strong> lavora a 4096 byte ed espone 512 byte, per compatibilità. Un disco <strong>4Kn</strong> lavora ed espone 4096 byte. Per il software conta solo il settore logico, perché è l'unità con cui si interpretano gli indirizzi.
+        </div>
+
+        <p>Negli SSD NVMe il settore logico è configurabile. Ogni <em class="term">namespace</em> supporta un elenco di formati, detti <em>LBA format</em>, tipicamente 512 e 4096 byte, e ne usa uno. Il formato si cambia con il comando NVMe <em>Format</em>, che cancella il namespace. Un SSD usato può quindi trovarsi a 4096 byte per una scelta del proprietario precedente. Lo stesso accade con alcuni adattatori USB-SATA, che espongono 4096 byte anche se il disco lavora a 512.</p>
+
+        <pre data-label="bash"><code>lsblk -o NAME,SIZE,LOG-SEC,PHY-SEC
+# NAME          SIZE LOG-SEC PHY-SEC
+# nvme0n1     238.5G    4096    4096</code></pre>
+
+        <h2>La tabella delle partizioni conta settori, non byte</h2>
+
+        <p>Le immagini di Raspberry Pi OS usano una tabella delle partizioni MBR. Ogni voce contiene due interi a 32 bit: il <strong>primo settore</strong> della partizione e il <strong>numero di settori</strong>. La dimensione del settore non è scritta: chi legge la tabella usa quella del disco su cui la trova. Per la GPT vale lo stesso, e in più l'header si trova all'LBA 1, quindi a 512 o a 4096 byte dall'inizio.</p>
+
+        <p>L'immagine è costruita per settori da 512 byte. La partizione di boot inizia al settore 16384 e occupa 1048576 settori:</p>
+
+        <pre data-label="calcolo"><code>p1 inizio      16384 × 512  =     8 MiB      16384 × 4096  =    64 MiB
+p1 lunghezza 1048576 × 512  =   512 MiB    1048576 × 4096  =     4 GiB</code></pre>
+
+        <p><code>dd</code> copia i byte senza interpretarli, quindi il boot sector della FAT si trova a 8 MiB dall'inizio del disco, come nell'immagine. Il kernel però legge la tabella con settori da 4096 byte e colloca la p1 a 64 MiB, cioè 56 MiB dentro la FAT. A quell'indirizzo non c'è un boot sector: né il bootloader né il kernel riconoscono il filesystem. Per la stessa ragione la p2 risulta a 4 GiB invece che a 520 MiB.</p>
+
+        <div class="diagram">
+          <div class="lba-map">
+            <div class="lba-row">
+              <span class="lba-label">contenuto scritto da dd</span>
+              <div class="lba-track">
+                <span class="lba-seg lba-mbr" style="left:0;width:1.5%" title="MBR"></span>
+                <span class="lba-seg lba-fat" style="left:6.25%;width:93.75%">FAT (bootfs) →</span>
+              </div>
+            </div>
+            <div class="lba-row">
+              <span class="lba-label">p1 letta a 512 B</span>
+              <div class="lba-track">
+                <span class="lba-mark lba-ok" style="left:6.25%">16384 × 512</span>
+              </div>
+            </div>
+            <div class="lba-row">
+              <span class="lba-label">p1 letta a 4096 B</span>
+              <div class="lba-track">
+                <span class="lba-mark lba-bad" style="left:50%">16384 × 4096</span>
+              </div>
+            </div>
+            <div class="lba-axis">
+              <span style="left:6.25%">8 MiB</span>
+              <span style="left:50%">64 MiB</span>
+              <span style="left:100%">128 MiB</span>
+            </div>
+          </div>
+          <p class="diagram-caption">
+            Primi 128 MiB del disco. Lo stesso numero di settore, 16384,<br>
+            indica il boot sector a 512 B e il mezzo della FAT a 4096 B.
+          </p>
+        </div>
+
+        <p>Le stesse grandezze lette nei due modi:</p>
+
+        <div class="table-wrap">
+          <table class="left">
+            <thead>
+              <tr><th>Grandezza</th><th>Settori</th><th>Letta a 512 B</th><th>Letta a 4096 B</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>p1 inizio</td><td>16384</td><td>8 MiB</td><td>64 MiB</td></tr>
+              <tr><td>p1 dimensione</td><td>1048576</td><td>512 MiB</td><td>4 GiB</td></tr>
+              <tr><td>p2 inizio</td><td>1064960</td><td>520 MiB</td><td>4,06 GiB</td></tr>
+              <tr><td>p2 dimensione</td><td>4956160</td><td>2,36 GiB</td><td>18,9 GiB</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">La dimensione della p2 cambia da una versione dell'immagine all'altra; 4956160 settori riproduce i 18.9G osservati.</p>
+
+        <p>La colonna di destra contiene i valori mostrati da <code>lsblk</code> e <code>fdisk</code>. Non sono residui di un'installazione precedente: sono la tabella dell'immagine, corretta, letta con l'unità sbagliata.</p>
+
+        <h2>Esempio: il problema riprodotto su un file</h2>
+
+        <p>Per riprodurre il problema non servono un SSD né i privilegi di root. L'opzione <code>-b</code> di <code>fdisk</code> impone la dimensione del settore con cui leggere la tabella, che è ciò che fa il kernel con un disco 4Kn.</p>
+
+        <p>Il primo passo è un'immagine con la geometria di Raspberry Pi OS: un file sparso, una tabella MBR con due partizioni e un filesystem FAT32 nella prima.</p>
+
+        <pre data-label="bash"><code># file sparso della dimensione dell'immagine (non occupa spazio)
+truncate -s $(( (1064960 + 4956160) * 512 )) demo.img
+
+# tabella MBR con la geometria di Raspberry Pi OS, in settori da 512 B
+sfdisk -q demo.img &lt;&lt;'EOF'
+label: dos
+start=16384,   size=1048576, type=c
+start=1064960, size=4956160, type=83
+EOF
+
+# FAT32 nella p1; --offset è espresso in settori da 512 B
+mkfs.fat -F 32 -n bootfs --offset 16384 demo.img 524288</code></pre>
+
+        <p>Con la lettura normale, la tabella coincide con quella dell'immagine originale:</p>
+
+        <pre data-label="fdisk -l demo.img"><code>Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+
+Device     Boot   Start     End Sectors  Size Id Type
+demo.img1         16384 1064959 1048576  512M  c W95 FAT32 (LBA)
+demo.img2       1064960 6021119 4956160  2.4G 83 Linux</code></pre>
+
+        <p>Con settori da 4096 byte compaiono i valori osservati sul Pi. <code>Start</code>, <code>End</code> e <code>Sectors</code> non cambiano; cambia solo <code>Size</code>:</p>
+
+        <pre data-label="fdisk -b 4096 -l demo.img"><code>Units: sectors of 1 * 4096 = 4096 bytes
+Sector size (logical/physical): 4096 bytes / 4096 bytes
+
+Device     Boot   Start     End Sectors  Size Id Type
+demo.img1         16384 1064959 1048576    4G  c W95 FAT32 (LBA)
+demo.img2       1064960 6021119 4956160 18.9G 83 Linux</code></pre>
+
+        <p>Resta da verificare dove si trova la FAT. Il comando <code>file</code> riconosce un boot sector dai primi byte; basta leggere un MiB a ciascuno dei due offset:</p>
+
+        <pre data-label="bash"><code>dd if=demo.img bs=1M skip=8 count=1 status=none | file -
+# /dev/stdin: DOS/MBR boot sector, OEM-ID "mkfs.fat", ... FAT (32 bit), label: "bootfs     "
+
+dd if=demo.img bs=1M skip=64 count=1 status=none | file -
+# /dev/stdin: data</code></pre>
+
+        <p>La FAT è a 8 MiB; a 64 MiB non c'è. Nel file di prova quell'area è vuota, mentre in un'immagine reale contiene file della partizione di boot. In nessuno dei due casi contiene un boot sector. La stessa verifica si può fare sull'immagine ufficiale, decompressa con <code>xz -dk</code>.</p>
+
+        <div class="callout callout-tip">
+          <strong>Controllo prima della scrittura</strong>
+          <code>fdisk -b 4096 -l</code> mostra come un disco 4Kn leggerà l'immagine. Se le dimensioni delle partizioni crescono di un fattore 8, l'immagine non è utilizzabile su quel disco senza modifiche.
+        </div>
+
+        <h2>Il secondo ostacolo: la FAT dichiara 512 byte</h2>
+
+        <p>Correggere la posizione della partizione non basta. Il boot sector della FAT contiene il campo <em>bytes per sector</em> (offset 0x0B), che <code>mkfs.fat</code> imposta a 512. Nel file di prova i due byte valgono <code>00 02</code>: 0x0200 in little endian, cioè 512.</p>
+
+        <pre data-label="bash"><code>dd if=demo.img bs=1 skip=$(( 8*1024*1024 + 11 )) count=2 status=none | xxd
+# 00000000: 0002</code></pre>
+
+        <p>Linux non monta una FAT con un settore logico più piccolo di quello del dispositivo, perché il disco non può scrivere con la granularità che il filesystem richiede. Il kernel registra <code>FAT-fs: logical sector size too small for device</code>. Oltre alla tabella va quindi rifatta la FAT, oppure va cambiato il formato del disco.</p>
+
+        <p>Il filesystem della root, ext4, usa blocchi da 4096 byte e non dipende dal settore logico. Su un disco 4Kn fallisce solo perché la p2 punta all'indirizzo sbagliato.</p>
+
+        <h2>Perché nessuno strumento lo segnala</h2>
+
+        <p><code>dd</code> e Imager lavorano a livello di byte: scrivono l'immagine a partire dall'offset 0 e non leggono la tabella delle partizioni. La verifica finale rilegge gli stessi byte e li confronta con l'immagine, e il confronto riesce perché i dati sono integri. L'errore è nell'interpretazione dell'indice, e si manifesta solo quando qualcuno lo legge.</p>
+
+        <p>I messaggi d'errore descrivono il sintomo: all'indirizzo atteso non c'è un filesystem riconoscibile. Portano a sospettare un'immagine corrotta o una scrittura fallita. L'unico indizio diretto è il fattore 8 nelle dimensioni delle partizioni.</p>
+
+        <h2>Diagnosi e correzione</h2>
+
+        <p>La prima verifica è il settore logico del disco, con il comando <code>lsblk</code> visto sopra. I formati supportati dal namespace, e quello attivo, si leggono con <code>smartctl</code> o con <code>nvme-cli</code>:</p>
+
+        <pre data-label="sudo smartctl -x /dev/nvme0"><code>Supported LBA Sizes (NSID 0x1)
+Id Fmt  Data  Metadt  Rel_Perf
+ 0 -     512       0         2
+ 1 +    4096       0         1</code></pre>
+        <p class="table-note">Il segno <code>+</code> indica il formato attivo. L'output è un esempio dello stato prima della correzione.</p>
+
+        <p>La correzione consiste nel riformattare il namespace a 512 byte. Il comando <em>Format</em> cancella tutto il disco, quindi va eseguito con il Pi avviato da scheda SD, oppure con l'SSD collegato a un'altra macchina.</p>
+
+        <div class="callout callout-warn">
+          <strong>Operazione distruttiva</strong>
+          <code>nvme format</code> cancella tutti i dati del namespace, senza conferma e senza possibilità di recupero. Prima di eseguirlo, verificare con <code>lsblk</code> che <code>/dev/nvme0n1</code> sia l'SSD corretto e che nessuna sua partizione sia montata.
+        </div>
+
+        <pre data-label="bash"><code># formati disponibili: "(in use)" indica quello attivo
+sudo nvme id-ns -H /dev/nvme0n1 | grep 'LBA Format'
+
+# riformattazione con il formato 0 (512 byte)
+sudo nvme format /dev/nvme0n1 --lbaf=0
+
+# verifica
+lsblk -o NAME,SIZE,LOG-SEC /dev/nvme0n1</code></pre>
+
+        <p>Dopo la riformattazione l'immagine si riscrive con <code>dd</code>. <code>lsblk</code> mostra la p1 da 512M, la FAT si monta e il Pi si avvia da NVMe. <code>hdparm -t</code> misura circa 420 MB/s in lettura sequenziale, valore coerente con un link PCIe Gen2 x1 (5 GT/s, circa 500 MB/s utili).</p>
+
+        <div class="callout callout-info">
+          <strong>L'alternativa a 4096 byte</strong>
+          Si può anche mantenere il disco a 4096 byte e ricostruire tabella e filesystem per quella geometria: partizioni ricalcolate in settori da 4096 B, FAT creata con <code>mkfs.fat -S 4096</code> e copia dei file dall'immagine. La procedura è più lunga, va ripetuta a ogni reinstallazione e richiede che il bootloader supporti i settori da 4 KiB. Se l'SSD supporta entrambi i formati, la riformattazione a 512 byte è la soluzione più semplice.
+        </div>
+
+        <h2>Appendice: blocchi in esercizio e PCIe Gen3</h2>
+
+        <p>Con il sistema in esercizio, il Pi ha iniziato a bloccarsi in modo saltuario. Nell'ultimo episodio è rimasto fermo per circa dieci ore, con l'SSD molto caldo. In <code>config.txt</code> era attiva la riga <code>dtparam=pciex1_gen=3</code>, che porta il link PCIe a 8 GT/s. Il Pi 5 accetta l'impostazione, ma Raspberry Pi non la certifica: il connettore è specificato per il Gen2.</p>
+
+        <p>L'analisi ha dato questi risultati:</p>
+
+        <ul>
+          <li><strong>Nessun log del blocco.</strong> Raspberry Pi OS tiene il journal in RAM (<code>Storage=volatile</code> in <code>/usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf</code>) per ridurre le scritture sulle schede SD. Al riavvio i log precedenti si perdono. Il messaggio <code>EXT4-fs: orphan cleanup on readonly fs</code> conferma solo che lo spegnimento non è stato pulito.</li>
+          <li><strong>Alimentazione regolare.</strong> <code>vcgencmd get_throttled</code> restituisce <code>0xe0000</code>: throttling termico della CPU, nessuna sottotensione.</li>
+          <li><strong>SSD integro.</strong> SMART riporta zero errori sui dati e un'usura del 3%. Il sensore di temperatura interno è guasto: i valori oscillano fra 9 e 32 °C da un campione all'altro, quindi il controller non può proteggersi dal surriscaldamento.</li>
+          <li><strong>Blocco non riproducibile.</strong> Un backup intenso con Immich porta la CPU a 84-85 °C, con throttling, ma il sistema non si blocca.</li>
+        </ul>
+
+        <p>Il calore è con buona probabilità una <strong>conseguenza</strong> del blocco. Con il kernel fermo, nessuno porta l'SSD negli stati a basso consumo (fino a 6,8 W in quello di massima potenza), la ventola non è più regolata e il sensore guasto esclude la protezione interna. Dieci ore in queste condizioni spiegano la temperatura. La causa del blocco va cercata a monte, e il principale indiziato è il link Gen3 non certificato su un SSD datato.</p>
+
+        <p>Gli interventi sono due:</p>
+
+        <ol class="steps">
+          <li>
+            <strong>Ritorno al Gen2</strong>
+            La riga in <code>/boot/firmware/config.txt</code> si commenta, dopo una copia di sicurezza del file. Al riavvio, <code>dmesg</code> riporta <code>link up, 5.0 GT/s PCIe x1</code>.
+            <pre data-label="bash"><code>sudo cp /boot/firmware/config.txt /boot/firmware/config.txt.bak
+sudo sed -i 's/^dtparam=pciex1_gen=3/#dtparam=pciex1_gen=3/' /boot/firmware/config.txt</code></pre>
+          </li>
+          <li>
+            <strong>Journal persistente</strong>
+            Un file di configurazione letto dopo quello di Raspberry Pi OS salva i log sull'SSD, con un limite di 200 MB. L'usura dell'SSD è trascurabile, e un eventuale blocco futuro resta registrato in <code>journalctl -b -1</code>.
+            <pre data-label="/etc/systemd/journald.conf.d/90-persistent.conf"><code>[Journal]
+Storage=persistent
+SystemMaxUse=200M</code></pre>
+          </li>
+        </ol>
+
+        <div class="callout callout-ok">
+          <strong>Esito</strong>
+          Dal ritorno al Gen2 il sistema non si è più bloccato. Per un server domestico la banda persa è irrilevante: 420 MB/s superano le esigenze di Immich e di una condivisione di rete.
+        </div>
+
+        <h2>Conclusioni</h2>
+
+        <p>Una tabella delle partizioni è un indice espresso in settori, e il suo significato dipende dal disco che la contiene. Un'immagine costruita per settori da 512 byte e scritta su un disco che ne espone 4096 conserva dati integri, ma con un indice che punta otto volte più lontano. Gli strumenti di scrittura non rilevano l'errore, e i messaggi descrivono solo il sintomo.</p>
+
+        <p>Il controllo richiede un comando, <code>lsblk -o NAME,LOG-SEC</code>, da eseguire prima di scrivere un'immagine su un SSD di provenienza ignota o collegato tramite adattatore USB. Se il valore è 4096 e il disco supporta anche i 512 byte, <code>nvme format --lbaf=0</code> risolve il problema alla radice.</p>
+
+        <h2>Riferimenti</h2>
+
+        <ul>
+          <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#pcie-gen-3-0" target="_blank" rel="noopener">Raspberry Pi — documentazione, PCIe Gen 3.0</a></li>
+          <li><a href="https://nvmexpress.org/specifications/" target="_blank" rel="noopener">NVM Express — specifiche (comando Format NVM, LBA format)</a></li>
+          <li><a href="https://github.com/linux-nvme/nvme-cli" target="_blank" rel="noopener">nvme-cli</a></li>
+          <li><a href="https://wiki.archlinux.org/title/Advanced_Format" target="_blank" rel="noopener">ArchWiki — Advanced Format</a></li>
+          <li><a href="https://www.freedesktop.org/software/systemd/man/latest/journald.conf.html" target="_blank" rel="noopener">journald.conf(5)</a></li>
+        </ul>
+
+      </div>
+
+      <footer class="article-end">
+        <a href="../index.html#articoli">← Tutti gli articoli</a>
+        <span>Testo rilasciato con licenza CC BY 4.0</span>
+      </footer>
+    </article>
+
+    <aside class="toc" aria-label="Indice">
+      <p class="toc-title">In questa pagina</p>
+      <ol></ol>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© 2025–2026 Gabbro</span>
+      <nav aria-label="Piè di pagina">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="https://github.com/sergabbro" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/nav.js" defer></script>
+  <script src="../assets/js/article.js" defer></script>
+</body>
+</html>

@@ -527,3 +527,4 @@
   .table-wrap { margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); border-radius: 0; border-left: 0; border-right: 0; }
   .article-end { flex-direction: column; align-items: flex-start; }
 }
+.lab-head .ai-flag { margin-top: 16px; }

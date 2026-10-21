@@ -1,0 +1,105 @@
+/* =========================================================
+   GABBRO — stft.css
+   STFT e FFT a confronto (tools/stft.html).
+   Layout, controlli e grafici vengono da sampling.css;
+   qui solo le aggiunte.
+   ========================================================= */
+
+:root {
+  /* colori dei grafici: gli stessi valori sono in js/stft.js */
+  --p-win:   #f5a524;   /* finestra, frame selezionato */
+  --p-frame: #22d3ee;   /* spettro del frame */
+  --p-glob:  #6b6f7a;   /* FFT globale nel confronto */
+  --p-wins:  #a78bfa;   /* finestre traslate */
+  --p-sum:   #4ade80;   /* somma delle finestre */
+}
+
+.sw-win   { --c: var(--p-win); }
+.sw-frame { --c: var(--p-frame); }
+.sw-glob  { --c: var(--p-glob); }
+.sw-wins  { --c: var(--p-wins); }
+.sw-sum   { --c: var(--p-sum); }
+
+/* sei indicatori su tre colonne */
+.lab-stats-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.plot canvas.is-pick { cursor: crosshair; touch-action: pan-y; }
+
+/* barra di colore dello spettrogramma (magma) */
+.cbar { gap: 8px; }
+.cbar i {
+  display: inline-block;
+  width: 96px; height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #000004, #1c1044, #4f127b, #812581, #b5367a, #e55064, #fb8761, #fec287, #fcfdbf);
+}
+
+.field-gap { margin-top: 16px; }
+
+.cola-btn {
+  width: 100%;
+  margin-top: -4px;
+  padding: 7px 10px;
+  border: 1px dashed var(--border-2);
+  border-radius: var(--radius-sm);
+  background: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.cola-btn:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.3); }
+
+/* caricamento file */
+.file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.file-btn {
+  display: block;
+  padding: 9px 12px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+.file-btn:hover { border-color: rgba(255, 255, 255, 0.25); }
+.file-input:focus-visible + .file-btn { outline: 2px solid var(--accent-3); outline-offset: 2px; }
+.file-name {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+.file-name:empty { display: none; }
+
+
+
+/* confronto: FFT globale ruotata accanto allo spettrogramma, stesso asse f */
+.sw-avg { --c: #a78bfa; }
+.cmp {
+  display: grid;
+  grid-template-columns: minmax(104px, 24%) minmax(0, 1fr);
+  gap: 6px;
+}
+.cmp-col { min-width: 0; }
+.cmp-label {
+  display: block;
+  padding: 0 0 4px 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plot canvas.h-xs { height: 110px; }
+
+@media (max-width: 640px) {
+  .lab-stats-3 { grid-template-columns: 1fr 1fr; }
+  .cmp { grid-template-columns: minmax(0, 40%) minmax(0, 1fr); gap: 2px; }
+}

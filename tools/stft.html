@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STFT e FFT a confronto — Gabbro</title>
+  <meta name="description" content="Strumento interattivo che confronta la FFT dell'intero segnale con la STFT: finestra, lunghezza, overlap e zero-padding, con spettrogramma, spettro del singolo frame e verifica della condizione COLA.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="STFT e FFT a confronto">
+  <meta property="og:url" content="https://sergabbro.github.io/tools/stft.html">
+  <link rel="icon" type="image/svg+xml" href="../assets/img/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/article.css">
+  <link rel="stylesheet" href="../assets/css/sampling.css">
+  <link rel="stylesheet" href="../assets/css/stft.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
+  <header class="navbar">
+    <div class="wrap wrap-wide">
+      <a href="../index.html" class="brand" aria-label="Gabbro, home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Gabbro</span>
+        <span class="brand-role">ing. elettronico</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu"><span></span><span></span></button>
+      <nav class="nav-links" id="menu" aria-label="Principale">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti" aria-current="page">Strumenti</a>
+        <a href="../index.html#chi-sono">Chi sono</a>
+        <a href="https://github.com/sergabbro" class="ext" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenuto" class="wrap wrap-wide lab-page">
+
+    <header class="lab-head rise">
+      <nav class="breadcrumb" aria-label="Percorso">
+        <a href="../index.html">gabbro</a><span class="sep">/</span>
+        <a href="../index.html#strumenti">strumenti</a><span class="sep">/</span>
+        <span>stft</span>
+      </nav>
+      <span class="eyebrow">Strumento · DSP</span>
+      <h1>STFT e FFT a confronto</h1>
+      <p class="lead">La FFT dell'intero segnale indica quali frequenze sono presenti, non quando. La STFT ripete la FFT su finestre scorrevoli e restituisce uno spettrogramma. I due risultati sono affiancati sullo stesso asse delle frequenze, insieme alla media dei frame, che riporta la STFT a uno spettro unico confrontabile con la FFT.</p>
+      <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
+      <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
+    </header>
+
+    <div class="lab rise rise-1">
+
+      <!-- ── CONTROLLI ── -->
+      <aside class="lab-side" aria-label="Parametri">
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">Segnale</h2>
+          <label class="field">
+            <span class="field-label">Forma</span>
+            <select id="sig">
+              <option value="chirp">Chirp lineare</option>
+              <option value="seq">Due toni in sequenza</option>
+              <option value="close">Due toni vicini</option>
+              <option value="clicks">Tono e due impulsi</option>
+              <option value="file">File audio…</option>
+            </select>
+          </label>
+          <div class="field" id="file-field" hidden>
+            <input type="file" id="file" accept="audio/*" class="file-input">
+            <label for="file" class="file-btn">Scegli un file audio</label>
+            <span class="file-name" id="file-name"></span>
+          </div>
+          <div class="field" id="fs-field">
+            <span class="field-label">Frequenza di campionamento</span>
+            <div class="seg" role="radiogroup" aria-label="Frequenza di campionamento">
+              <button type="button" role="radio" data-fs="8000" aria-checked="false">8 kHz</button>
+              <button type="button" role="radio" data-fs="16000" aria-checked="true">16 kHz</button>
+              <button type="button" role="radio" data-fs="48000" aria-checked="false">48 kHz</button>
+            </div>
+          </div>
+          <label class="field" id="dur-field">
+            <span class="field-row"><span class="field-label">Durata</span><output id="dur-out"></output></span>
+            <input type="range" id="dur" min="0.25" max="4" step="0.05" value="1">
+          </label>
+          <label class="field">
+            <span class="field-row"><span class="field-label">Rumore bianco</span><output id="noise-out"></output></span>
+            <input type="range" id="noise" min="-100" max="-20" step="1" value="-100">
+          </label>
+          <p class="field-note" id="sig-note"></p>
+        </section>
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">STFT</h2>
+          <div class="field">
+            <span class="field-label">Finestra</span>
+            <div class="seg" role="radiogroup" aria-label="Finestra">
+              <button type="button" role="radio" data-win="rect" aria-checked="false">Rett.</button>
+              <button type="button" role="radio" data-win="hann" aria-checked="true">Hann</button>
+              <button type="button" role="radio" data-win="hamming" aria-checked="false">Hamming</button>
+              <button type="button" role="radio" data-win="blackman" aria-checked="false">Blackman</button>
+            </div>
+          </div>
+          <label class="field">
+            <span class="field-row"><span class="field-label">Lunghezza N</span><output id="n-out"></output></span>
+            <input type="range" id="n" min="6" max="13" step="1" value="10">
+          </label>
+          <label class="field">
+            <span class="field-row"><span class="field-label">Overlap</span><output id="ov-out"></output></span>
+            <input type="range" id="ov" min="0" max="95" step="1" value="50">
+          </label>
+          <button type="button" class="cola-btn" id="cola">Overlap COLA per questa finestra</button>
+          <div class="field field-gap">
+            <span class="field-label">Zero-padding N<sub>FFT</sub></span>
+            <div class="seg" role="radiogroup" aria-label="Zero-padding">
+              <button type="button" role="radio" data-zp="1" aria-checked="true">× 1</button>
+              <button type="button" role="radio" data-zp="2" aria-checked="false">× 2</button>
+              <button type="button" role="radio" data-zp="4" aria-checked="false">× 4</button>
+              <button type="button" role="radio" data-zp="8" aria-checked="false">× 8</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="ctl-group">
+          <h2 class="ctl-title">Visualizzazione</h2>
+          <div class="field">
+            <span class="field-label">Scala</span>
+            <div class="seg" role="radiogroup" aria-label="Scala">
+              <button type="button" role="radio" data-scale="auto" aria-checked="true">Auto</button>
+              <button type="button" role="radio" data-scale="amp" aria-checked="false">Ampiezza</button>
+              <button type="button" role="radio" data-scale="psd" aria-checked="false">Densità</button>
+            </div>
+          </div>
+          <label class="field">
+            <span class="field-row"><span class="field-label">Dinamica</span><output id="dyn-out"></output></span>
+            <input type="range" id="dyn" min="40" max="120" step="5" value="80">
+          </label>
+          <label class="field">
+            <span class="field-row"><span class="field-label">Frame selezionato</span><output id="pos-out"></output></span>
+            <input type="range" id="pos" min="0" max="1" step="0.001" value="0.5">
+          </label>
+          <p class="field-note">Il frame si sceglie anche con un clic o un trascinamento sullo spettrogramma.</p>
+        </section>
+
+      </aside>
+
+      <!-- ── GRAFICI ── -->
+      <section class="lab-main" aria-label="Grafici">
+
+        <div class="lab-stats lab-stats-3">
+          <div class="stat"><span class="stat-label">Risoluzione FFT globale</span><span class="stat-value" id="st-glob">—</span></div>
+          <div class="stat"><span class="stat-label">Risoluzione STFT (−6 dB)</span><span class="stat-value" id="st-res">—</span></div>
+          <div class="stat"><span class="stat-label">Durata del frame</span><span class="stat-value" id="st-tres">—</span></div>
+          <div class="stat"><span class="stat-label">Passo fra frame (hop)</span><span class="stat-value" id="st-hop">—</span></div>
+          <div class="stat"><span class="stat-label">Frame</span><span class="stat-value" id="st-frames">—</span></div>
+          <div class="stat"><span class="stat-label">Ripple COLA</span><span class="stat-value" id="st-cola">—</span></div>
+          <div class="stat stat-wide"><span class="stat-label">Osservazioni</span><ul class="diag" id="st-diag"></ul></div>
+        </div>
+
+        <figure class="plot">
+          <figcaption class="plot-head">
+            <h3>FFT globale e STFT sullo stesso asse delle frequenze</h3>
+            <span class="plot-meta" id="m-cmp"></span>
+          </figcaption>
+          <div class="cmp">
+            <div class="cmp-col">
+              <span class="cmp-label">FFT dell'intero segnale</span>
+              <canvas id="c-fft" class="h-lg"></canvas>
+            </div>
+            <div class="cmp-col">
+              <span class="cmp-label">STFT · un frame per colonna</span>
+              <canvas id="c-spg" class="h-lg is-pick"></canvas>
+              <canvas id="c-time" class="h-xs"></canvas>
+            </div>
+          </div>
+          <div class="legend">
+            <span class="cbar"><span id="cb-lo">—</span><i aria-hidden="true"></i><span id="cb-hi">—</span></span>
+            <span><i class="sw sw-glob"></i>FFT globale</span>
+            <span><i class="sw sw-avg"></i>media dei frame STFT</span>
+            <span><i class="sw sw-win"></i>frame selezionato e sua finestra</span>
+          </div>
+        </figure>
+
+        <figure class="plot">
+          <figcaption class="plot-head">
+            <h3>Spettri sovrapposti: FFT globale, frame selezionato, media dei frame</h3>
+            <span class="plot-meta" id="m-slice"></span>
+          </figcaption>
+          <canvas id="c-slice" class="h-lg"></canvas>
+          <div class="legend">
+            <span><i class="sw sw-glob"></i>FFT dell'intero segnale</span>
+            <span><i class="sw sw-avg"></i>media di tutti i frame STFT</span>
+            <span><i class="sw sw-frame"></i>frame selezionato</span>
+          </div>
+        </figure>
+
+        <figure class="plot">
+          <figcaption class="plot-head">
+            <h3>Effetto dell'overlap: somma delle finestre traslate</h3>
+            <span class="plot-meta" id="m-cola"></span>
+          </figcaption>
+          <canvas id="c-cola" class="h-sm"></canvas>
+          <div class="legend">
+            <span><i class="sw sw-wins"></i>finestre traslate di hop</span>
+            <span><i class="sw sw-sum"></i>somma normalizzata</span>
+          </div>
+        </figure>
+
+      </section>
+    </div>
+
+    <!-- barra rapida su mobile -->
+    <div class="lab-quick" aria-label="Overlap">
+      <span class="lab-quick-label">overlap</span>
+      <input type="range" id="ov-quick" min="0" max="95" step="1" value="50" aria-label="Overlap">
+      <output id="ov-quick-out"></output>
+    </div>
+
+    <!-- ── TEORIA ── -->
+    <article class="article-shell lab-notes">
+      <div class="article-body">
+
+        <h2>FFT dell'intero segnale</h2>
+
+        <p>La DFT di L campioni, calcolata con la FFT, restituisce L coefficienti complessi. Ogni coefficiente misura quanto il segnale assomiglia a una sinusoide di frequenza k·f<sub>s</sub>/L lungo tutta la sua durata. La risoluzione in frequenza è quindi molto fine, ma il risultato non contiene alcuna informazione temporale: un tono presente solo nel primo decimo di secondo e un tono presente per tutto il segnale producono lo stesso picco, con ampiezze diverse.</p>
+
+        <div class="formula">X[k] = Σ<sub>n=0…L−1</sub> x[n] · e<sup>−j2πkn/L</sup></div>
+
+                <h2>STFT: FFT su finestre scorrevoli</h2>
+
+        <p>La <strong>STFT</strong> (<em>Short-Time Fourier Transform</em>) moltiplica il segnale per una finestra w di lunghezza N, calcola la FFT del tratto selezionato e ripete l'operazione spostando la finestra di <em class="term">hop</em> campioni. Ogni FFT è un <em class="term">frame</em>; i frame affiancati formano lo spettrogramma, con il tempo in ascissa, la frequenza in ordinata e il modulo in dB come colore.</p>
+
+        <div class="formula">X[m, k] = Σ<sub>n=0…N−1</sub> x[n + m·hop] · w[n] · e<sup>−j2πkn/N<sub>FFT</sub></sup></div>
+
+        <h2>Come leggere il confronto</h2>
+
+        <p>Il primo grafico affianca i due risultati sullo stesso asse delle frequenze. A sinistra c'è la FFT dell'intero segnale, ruotata: l'ascissa è il livello, l'ordinata la frequenza. In viola, sovrapposta, la media dei frame STFT. A destra c'è la STFT: ogni colonna è la FFT di un frame, con il livello reso come colore. Una riga orizzontale nello spettrogramma corrisponde a un picco nella FFT globale alla stessa altezza.</p>
+
+        <p>Con <em>Due toni in sequenza</em> la FFT globale mostra due picchi, a 1 e a 2,5 kHz, e non dice quale viene prima. Lo spettrogramma mostra lo stesso contenuto distribuito nel tempo: 1 kHz nella prima metà, 2,5 kHz nella seconda. Con il chirp la FFT globale è un piano fra 200 Hz e la frequenza finale; lo spettrogramma è una retta.</p>
+
+        <h2>Dalla STFT alla FFT: la media dei frame</h2>
+
+        <p>Il secondo grafico sovrappone tre spettri: la FFT globale, il frame selezionato e la <strong>media in potenza di tutti i frame</strong>. La media elimina l'informazione temporale della STFT e riporta a uno spettro unico, confrontabile con la FFT globale. Le due curve hanno lo stesso andamento; la media è più liscia e ha la risoluzione della finestra, cioè f<sub>s</sub>/N invece di f<sub>s</sub>/L. Questa media è il metodo di Welch per la stima della densità spettrale.</p>
+
+        <div class="callout callout-def">
+          <strong>Le due scale</strong>
+          In <strong>ampiezza</strong> il modulo è diviso per la somma dei coefficienti della finestra (L per la FFT globale) e moltiplicato per 2: una sinusoide di ampiezza 1 dà 0 dB in tutti i grafici, quindi i picchi dei toni coincidono. In <strong>densità</strong> la potenza è divisa per f<sub>s</sub>·Σw² e il risultato è in dB/Hz: coincidono i livelli del rumore e dei segnali a banda larga, come il chirp, mentre i picchi dei toni dipendono dalla larghezza del bin. In <strong>Auto</strong> la scala segue il segnale: ampiezza per i toni, densità per chirp e file audio. In entrambi i casi FFT globale e media dei frame si sovrappongono.
+        </div>
+
+        <h2>Il compromesso tempo-frequenza</h2>
+
+        <p>La lunghezza N fissa entrambe le risoluzioni. Un frame dura N/f<sub>s</sub> secondi: due eventi più vicini di questa durata cadono nello stesso frame e non si separano. Nello stesso frame, due toni si distinguono solo se distano almeno qualche f<sub>s</sub>/N, secondo la larghezza del lobo principale della finestra. Aumentare N migliora la risoluzione in frequenza e peggiora quella nel tempo, nella stessa proporzione.</p>
+
+        <div class="callout callout-tip">
+          <strong>Da provare</strong>
+          Con <em>Due toni vicini</em> (1000 e 1080 Hz, f<sub>s</sub> = 16 kHz) e finestra di Hann, N = 256 dà una risoluzione di 125 Hz: i due toni cadono nello stesso lobo, e lo spettrogramma mostra invece il loro battimento, un'oscillazione di livello a 80 Hz. Con N = 512 la risoluzione scende a 62,5 Hz e compaiono due picchi a 1000 e 1080 Hz. Con <em>Tono e due impulsi</em>, distanti 10 ms, vale il contrario: N = 64 separa gli impulsi, N = 1024 li fonde in una sola striscia verticale.
+        </div>
+
+        <h2>La finestra</h2>
+
+        <p>Troncare il segnale equivale a moltiplicarlo per una finestra, quindi a convolvere lo spettro con la trasformata della finestra. Ne derivano due effetti: ogni tono si allarga quanto il <strong>lobo principale</strong>, e una parte della sua energia si distribuisce sui <strong>lobi laterali</strong>, ad altre frequenze (<em class="term">leakage</em>). Le finestre differiscono nel compromesso fra i due.</p>
+
+        <div class="table-wrap">
+          <table class="left">
+            <thead>
+              <tr><th>Finestra</th><th>Banda a −6 dB</th><th>Primo lobo laterale</th><th>Overlap COLA</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Rettangolare</td><td>1,21 bin</td><td>−13 dB</td><td>0%</td></tr>
+              <tr><td>Hann</td><td>2,00 bin</td><td>−32 dB</td><td>50%, 75%</td></tr>
+              <tr><td>Hamming</td><td>1,81 bin</td><td>−43 dB</td><td>50%, 75%</td></tr>
+              <tr><td>Blackman</td><td>2,35 bin</td><td>−58 dB</td><td>66,7%, 75%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">Un bin vale f<sub>s</sub>/N. Valori per le finestre periodiche, da F. J. Harris (1978).</p>
+
+        <p>La finestra rettangolare ha il lobo principale più stretto, ma i lobi laterali alti mascherano i componenti deboli: nello spettrogramma compaiono come bande orizzontali attorno a ogni tono. Hann è il compromesso più comune. Blackman sacrifica risoluzione per una dinamica più ampia, utile quando un tono debole convive con uno molto più forte.</p>
+
+        <h2>L'overlap</h2>
+
+        <p>L'overlap è la frazione di campioni condivisa da due frame consecutivi: hop = N·(1 − overlap). Non cambia la risoluzione, che dipende solo da N e dalla finestra. Cambia la densità dei frame nel tempo e il peso che ogni campione riceve nell'analisi.</p>
+
+        <p>Senza overlap, una finestra che va a zero ai bordi attenua i campioni che cadono fra due frame: un evento breve in quella posizione risulta più debole o sparisce. Con un overlap adeguato, la somma delle finestre traslate di hop è costante e ogni campione pesa allo stesso modo. È la condizione <strong>COLA</strong> (<em>Constant Overlap-Add</em>), visibile nel grafico dell'overlap. La stessa condizione permette di risintetizzare il segnale dalla STFT per somma dei frame (overlap-add).</p>
+
+        <div class="formula">Σ<sub>m</sub> w[n − m·hop] = costante</div>
+
+        <p>Oltre la soglia COLA, un overlap maggiore rende lo spettrogramma più fluido lungo il tempo, ma non aggiunge informazione: i frame diventano sempre più correlati e il costo di calcolo cresce in proporzione a 1/hop.</p>
+
+        <h2>Zero-padding</h2>
+
+        <p>Il zero-padding aggiunge zeri al frame prima della FFT, portandone la lunghezza da N a N<sub>FFT</sub>. Il passo dei bin scende a f<sub>s</sub>/N<sub>FFT</sub> e lo spettro appare più continuo, ma la risoluzione resta quella della finestra di N campioni: si ottengono più punti sulla stessa curva. Due toni non separati con N = 256 restano non separati anche con N<sub>FFT</sub> = 2048.</p>
+
+        <div class="callout callout-info">
+          <strong>Dati e limiti</strong>
+          Il calcolo avviene nel browser con una FFT radix-2. I file audio sono decodificati localmente, ridotti a un canale e troncati a 10 secondi; non vengono inviati altrove. I parametri dei segnali di prova sono salvati nell'indirizzo della pagina, che si può condividere.
+        </div>
+
+      </div>
+    </article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap wrap-wide">
+      <span>© 2025–2026 Gabbro</span>
+      <nav aria-label="Piè di pagina">
+        <a href="../index.html#articoli">Articoli</a>
+        <a href="../index.html#strumenti">Strumenti</a>
+        <a href="https://github.com/sergabbro" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="../assets/js/sky.js" defer></script>
+  <script src="../assets/js/nav.js" defer></script>
+  <script src="../assets/js/stft.js" defer></script>
+</body>
+</html>
