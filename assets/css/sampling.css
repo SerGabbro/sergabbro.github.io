@@ -129,7 +129,6 @@ select {
   cursor: pointer;
 }
 select:focus-visible { outline: 2px solid var(--accent-3); outline-offset: 2px; }
-optgroup { font-style: normal; color: var(--text-faint); }
 option { color: var(--text); background: var(--bg-2); }
 
 /* slider */
@@ -342,7 +341,6 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.2); }
 .sw { display: inline-block; width: 14px; height: 2px; border-radius: 1px; background: var(--c); }
 .sw.dot  { width: 7px; height: 7px; border-radius: 50%; }
 .sw.area { width: 12px; height: 10px; border-radius: 2px; background: none; border: 1px solid var(--c); box-shadow: inset 0 0 0 20px color-mix(in srgb, var(--c) 22%, transparent); }
-.sw.dash { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
 .sw-sig    { --c: var(--p-sig); }
 .sw-smp    { --c: var(--p-smp); }
 .sw-r0     { --c: var(--p-r0); }

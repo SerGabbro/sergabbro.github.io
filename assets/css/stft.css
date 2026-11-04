@@ -1,31 +1,28 @@
 /* =========================================================
    GABBRO — stft.css
-   STFT e FFT a confronto (tools/stft.html).
+   STFT e spettrogramma (tools/stft.html).
    Layout, controlli e grafici vengono da sampling.css;
    qui solo le aggiunte.
    ========================================================= */
 
 :root {
-  /* colori dei grafici: gli stessi valori sono in js/stft.js */
-  --p-win:   #f5a524;   /* finestra, frame selezionato */
-  --p-frame: #22d3ee;   /* spettro del frame */
-  --p-glob:  #6b6f7a;   /* FFT globale nel confronto */
-  --p-wins:  #a78bfa;   /* finestre traslate */
-  --p-sum:   #4ade80;   /* somma delle finestre */
+  /* colori delle legende: gli stessi valori sono in js/stft.js */
+  --p-win:  #f5a524;   /* finestra, frame selezionato */
+  --p-wins: #a78bfa;   /* finestre traslate */
+  --p-sum:  #4ade80;   /* somma delle finestre */
 }
 
-.sw-win   { --c: var(--p-win); }
-.sw-frame { --c: var(--p-frame); }
-.sw-glob  { --c: var(--p-glob); }
-.sw-wins  { --c: var(--p-wins); }
-.sw-sum   { --c: var(--p-sum); }
+.sw-win  { --c: var(--p-win); }
+.sw-wins { --c: var(--p-wins); }
+.sw-sum  { --c: var(--p-sum); }
 
 /* sei indicatori su tre colonne */
 .lab-stats-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-.plot canvas.is-pick { cursor: crosshair; touch-action: pan-y; }
+.plot canvas.is-pick { cursor: crosshair; }
+.plot canvas.h-xs { height: 110px; }
 
-/* barra di colore dello spettrogramma (magma) */
+/* barra di colore dello spettrogramma (magma, stessi nodi della LUT in js/stft.js) */
 .cbar { gap: 8px; }
 .cbar i {
   display: inline-block;
@@ -77,29 +74,6 @@
 }
 .file-name:empty { display: none; }
 
-
-
-/* confronto: FFT globale ruotata accanto allo spettrogramma, stesso asse f */
-.sw-avg { --c: #a78bfa; }
-.cmp {
-  display: grid;
-  grid-template-columns: minmax(104px, 24%) minmax(0, 1fr);
-  gap: 6px;
-}
-.cmp-col { min-width: 0; }
-.cmp-label {
-  display: block;
-  padding: 0 0 4px 8px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--text-faint);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.plot canvas.h-xs { height: 110px; }
-
 @media (max-width: 640px) {
   .lab-stats-3 { grid-template-columns: 1fr 1fr; }
-  .cmp { grid-template-columns: minmax(0, 40%) minmax(0, 1fr); gap: 2px; }
 }

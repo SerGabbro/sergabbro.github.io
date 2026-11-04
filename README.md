@@ -8,7 +8,7 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
 
 - `index.html` — home
 - `articles/` — articoli
-- `tools/` — strumenti interattivi (Math Canvas, Laboratorio di campionamento, Laboratorio antenne)
+- `tools/` — strumenti interattivi (Math Canvas, Laboratorio di campionamento, Laboratorio antenne, STFT e spettrogramma)
 - `assets/css/`
   - `base.css` — token, reset, navbar, footer, elementi comuni (tutte le pagine)
   - `home.css` — hero, card, "Chi sono"
@@ -17,7 +17,7 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `math-canvas.css` — stile dello strumento Math Canvas
   - `sampling.css` — Laboratorio di campionamento (usa anche `base.css` e `article.css`)
   - `antenna.css` — Laboratorio antenne (usa anche `sampling.css` per layout e controlli)
-  - `stft.css` — STFT e FFT a confronto (usa anche `sampling.css` per layout e controlli)
+  - `stft.css` — STFT e spettrogramma (usa anche `sampling.css` per layout e controlli)
 - `assets/img/logo.svg` — icona del sito (favicon e marchio nella barra): una "G" disegnata come pista di circuito stampato
 - `assets/js/`
   - `sky.js` — sfondo a costellazioni (tutte le pagine)
@@ -26,7 +26,7 @@ Note tecniche di un ingegnere elettronico: reti, sicurezza dei sistemi, Linux, e
   - `article.js` — indice, ancore, barra di lettura, copia del codice
   - `math-canvas.js` — logica del Math Canvas
   - `sampling.js` — Laboratorio di campionamento: segnali standard, repliche spettrali, aliasing, ricostruzione con filtro ideale o Butterworth
-  - `stft.js` — STFT e FFT a confronto: FFT radix-2, finestre, overlap, spettrogramma, verifica COLA, caricamento audio
+  - `stft.js` — STFT e spettrogramma: FFT radix-2, finestre, overlap, zero-padding, verifica COLA, caricamento audio
   - `npz.js` — lettura e scrittura di file `.npz` di NumPy nel browser (zip + `.npy`, nessuna dipendenza)
   - `antenna.js` — Laboratorio antenne, analisi: Friis, audit, confronto, lobo 3D, carta di Smith; grafici con Plotly (CDN)
   - `antenna-pack.js` — Laboratorio antenne, impacchettamento: dai file grezzi del VNA (CSV/S2P per angolo) al formato `.rfm` v1 (NPZ con firma `RFM1` e `meta` JSON; si apre anche con `np.load`)

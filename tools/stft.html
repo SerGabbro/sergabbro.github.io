@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STFT e FFT a confronto — Gabbro</title>
-  <meta name="description" content="Strumento interattivo che confronta la FFT dell'intero segnale con la STFT: finestra, lunghezza, overlap e zero-padding, con spettrogramma, spettro del singolo frame e verifica della condizione COLA.">
+  <title>STFT e spettrogramma — Gabbro</title>
+  <meta name="description" content="Strumento interattivo sulla STFT: finestra, lunghezza, overlap e zero-padding, con spettrogramma, spettro del singolo frame e verifica della condizione COLA.">
   <meta name="theme-color" content="#07080a">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="STFT e FFT a confronto">
+  <meta property="og:title" content="STFT e spettrogramma">
   <meta property="og:url" content="https://sergabbro.github.io/tools/stft.html">
   <link rel="icon" type="image/svg+xml" href="../assets/img/logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,8 +48,8 @@
         <span>stft</span>
       </nav>
       <span class="eyebrow">Strumento · DSP</span>
-      <h1>STFT e FFT a confronto</h1>
-      <p class="lead">La FFT dell'intero segnale indica quali frequenze sono presenti, non quando. La STFT ripete la FFT su finestre scorrevoli e restituisce uno spettrogramma. I due risultati sono affiancati sullo stesso asse delle frequenze, insieme alla media dei frame, che riporta la STFT a uno spettro unico confrontabile con la FFT.</p>
+      <h1>STFT e spettrogramma</h1>
+      <p class="lead">La STFT divide il segnale in tratti brevi, li moltiplica per una finestra e calcola la FFT di ciascuno. Il risultato è lo spettrogramma: il contenuto in frequenza in funzione del tempo. Finestra, lunghezza, overlap e zero-padding fissano la risoluzione in tempo e in frequenza.</p>
       <!-- Flag IA: eliminare la riga seguente quando il testo della pagina è stato riscritto dall'autore -->
       <p class="ai-flag">Testo scritto dall'IA sui miei contenuti, non ancora riscritto da me</p>
     </header>
@@ -131,8 +131,7 @@
           <div class="field">
             <span class="field-label">Scala</span>
             <div class="seg" role="radiogroup" aria-label="Scala">
-              <button type="button" role="radio" data-scale="auto" aria-checked="true">Auto</button>
-              <button type="button" role="radio" data-scale="amp" aria-checked="false">Ampiezza</button>
+              <button type="button" role="radio" data-scale="amp" aria-checked="true">Ampiezza</button>
               <button type="button" role="radio" data-scale="psd" aria-checked="false">Densità</button>
             </div>
           </div>
@@ -153,9 +152,9 @@
       <section class="lab-main" aria-label="Grafici">
 
         <div class="lab-stats lab-stats-3">
-          <div class="stat"><span class="stat-label">Risoluzione FFT globale</span><span class="stat-value" id="st-glob">—</span></div>
-          <div class="stat"><span class="stat-label">Risoluzione STFT (−6 dB)</span><span class="stat-value" id="st-res">—</span></div>
           <div class="stat"><span class="stat-label">Durata del frame</span><span class="stat-value" id="st-tres">—</span></div>
+          <div class="stat"><span class="stat-label">Risoluzione (−6 dB)</span><span class="stat-value" id="st-res">—</span></div>
+          <div class="stat"><span class="stat-label">Passo dei bin</span><span class="stat-value" id="st-bin">—</span></div>
           <div class="stat"><span class="stat-label">Passo fra frame (hop)</span><span class="stat-value" id="st-hop">—</span></div>
           <div class="stat"><span class="stat-label">Frame</span><span class="stat-value" id="st-frames">—</span></div>
           <div class="stat"><span class="stat-label">Ripple COLA</span><span class="stat-value" id="st-cola">—</span></div>
@@ -164,39 +163,23 @@
 
         <figure class="plot">
           <figcaption class="plot-head">
-            <h3>FFT globale e STFT sullo stesso asse delle frequenze</h3>
-            <span class="plot-meta" id="m-cmp"></span>
+            <h3>Spettrogramma e segnale nel tempo</h3>
+            <span class="plot-meta" id="m-spg"></span>
           </figcaption>
-          <div class="cmp">
-            <div class="cmp-col">
-              <span class="cmp-label">FFT dell'intero segnale</span>
-              <canvas id="c-fft" class="h-lg"></canvas>
-            </div>
-            <div class="cmp-col">
-              <span class="cmp-label">STFT · un frame per colonna</span>
-              <canvas id="c-spg" class="h-lg is-pick"></canvas>
-              <canvas id="c-time" class="h-xs"></canvas>
-            </div>
-          </div>
+          <canvas id="c-spg" class="h-lg is-pick"></canvas>
+          <canvas id="c-time" class="h-xs"></canvas>
           <div class="legend">
             <span class="cbar"><span id="cb-lo">—</span><i aria-hidden="true"></i><span id="cb-hi">—</span></span>
-            <span><i class="sw sw-glob"></i>FFT globale</span>
-            <span><i class="sw sw-avg"></i>media dei frame STFT</span>
             <span><i class="sw sw-win"></i>frame selezionato e sua finestra</span>
           </div>
         </figure>
 
         <figure class="plot">
           <figcaption class="plot-head">
-            <h3>Spettri sovrapposti: FFT globale, frame selezionato, media dei frame</h3>
+            <h3>Spettro del frame selezionato</h3>
             <span class="plot-meta" id="m-slice"></span>
           </figcaption>
           <canvas id="c-slice" class="h-lg"></canvas>
-          <div class="legend">
-            <span><i class="sw sw-glob"></i>FFT dell'intero segnale</span>
-            <span><i class="sw sw-avg"></i>media di tutti i frame STFT</span>
-            <span><i class="sw sw-frame"></i>frame selezionato</span>
-          </div>
         </figure>
 
         <figure class="plot">
@@ -225,31 +208,17 @@
     <article class="article-shell lab-notes">
       <div class="article-body">
 
-        <h2>FFT dell'intero segnale</h2>
+        <h2>STFT: FFT su finestre scorrevoli</h2>
 
-        <p>La DFT di L campioni, calcolata con la FFT, restituisce L coefficienti complessi. Ogni coefficiente misura quanto il segnale assomiglia a una sinusoide di frequenza k·f<sub>s</sub>/L lungo tutta la sua durata. La risoluzione in frequenza è quindi molto fine, ma il risultato non contiene alcuna informazione temporale: un tono presente solo nel primo decimo di secondo e un tono presente per tutto il segnale producono lo stesso picco, con ampiezze diverse.</p>
-
-        <div class="formula">X[k] = Σ<sub>n=0…L−1</sub> x[n] · e<sup>−j2πkn/L</sup></div>
-
-                <h2>STFT: FFT su finestre scorrevoli</h2>
-
-        <p>La <strong>STFT</strong> (<em>Short-Time Fourier Transform</em>) moltiplica il segnale per una finestra w di lunghezza N, calcola la FFT del tratto selezionato e ripete l'operazione spostando la finestra di <em class="term">hop</em> campioni. Ogni FFT è un <em class="term">frame</em>; i frame affiancati formano lo spettrogramma, con il tempo in ascissa, la frequenza in ordinata e il modulo in dB come colore.</p>
+        <p>La <strong>STFT</strong> (<em>Short-Time Fourier Transform</em>) serve per i segnali non stazionari, il cui contenuto in frequenza cambia nel tempo. Moltiplica il segnale per una finestra w di lunghezza N, calcola la FFT del tratto selezionato e ripete l'operazione spostando la finestra di <em class="term">hop</em> campioni. Ogni FFT è un <em class="term">frame</em>. I frame affiancati formano lo spettrogramma: tempo in ascissa, frequenza in ordinata, modulo in dB come colore.</p>
 
         <div class="formula">X[m, k] = Σ<sub>n=0…N−1</sub> x[n + m·hop] · w[n] · e<sup>−j2πkn/N<sub>FFT</sub></sup></div>
 
-        <h2>Come leggere il confronto</h2>
-
-        <p>Il primo grafico affianca i due risultati sullo stesso asse delle frequenze. A sinistra c'è la FFT dell'intero segnale, ruotata: l'ascissa è il livello, l'ordinata la frequenza. In viola, sovrapposta, la media dei frame STFT. A destra c'è la STFT: ogni colonna è la FFT di un frame, con il livello reso come colore. Una riga orizzontale nello spettrogramma corrisponde a un picco nella FFT globale alla stessa altezza.</p>
-
-        <p>Con <em>Due toni in sequenza</em> la FFT globale mostra due picchi, a 1 e a 2,5 kHz, e non dice quale viene prima. Lo spettrogramma mostra lo stesso contenuto distribuito nel tempo: 1 kHz nella prima metà, 2,5 kHz nella seconda. Con il chirp la FFT globale è un piano fra 200 Hz e la frequenza finale; lo spettrogramma è una retta.</p>
-
-        <h2>Dalla STFT alla FFT: la media dei frame</h2>
-
-        <p>Il secondo grafico sovrappone tre spettri: la FFT globale, il frame selezionato e la <strong>media in potenza di tutti i frame</strong>. La media elimina l'informazione temporale della STFT e riporta a uno spettro unico, confrontabile con la FFT globale. Le due curve hanno lo stesso andamento; la media è più liscia e ha la risoluzione della finestra, cioè f<sub>s</sub>/N invece di f<sub>s</sub>/L. Questa media è il metodo di Welch per la stima della densità spettrale.</p>
+        <p>Sotto lo spettrogramma c'è il segnale nel tempo, con il frame selezionato e la sua finestra. Il secondo grafico è lo spettro di quel frame, cioè una colonna dello spettrogramma.</p>
 
         <div class="callout callout-def">
           <strong>Le due scale</strong>
-          In <strong>ampiezza</strong> il modulo è diviso per la somma dei coefficienti della finestra (L per la FFT globale) e moltiplicato per 2: una sinusoide di ampiezza 1 dà 0 dB in tutti i grafici, quindi i picchi dei toni coincidono. In <strong>densità</strong> la potenza è divisa per f<sub>s</sub>·Σw² e il risultato è in dB/Hz: coincidono i livelli del rumore e dei segnali a banda larga, come il chirp, mentre i picchi dei toni dipendono dalla larghezza del bin. In <strong>Auto</strong> la scala segue il segnale: ampiezza per i toni, densità per chirp e file audio. In entrambi i casi FFT globale e media dei frame si sovrappongono.
+          In <strong>ampiezza</strong> il modulo è diviso per la somma dei coefficienti della finestra e moltiplicato per 2: una sinusoide di ampiezza 1 al centro di un bin dà un picco di 0 dB, qualunque siano N e la finestra. Il livello del rumore invece scende di 3 dB a ogni raddoppio di N. In <strong>densità</strong> la potenza è divisa per f<sub>s</sub>·Σw² e il risultato è in dB/Hz: il livello del rumore e dei segnali a banda larga, come il chirp, non dipende da N, mentre il picco di un tono sale di 3 dB a ogni raddoppio di N.
         </div>
 
         <h2>Il compromesso tempo-frequenza</h2>
@@ -294,11 +263,11 @@
 
         <h2>Zero-padding</h2>
 
-        <p>Il zero-padding aggiunge zeri al frame prima della FFT, portandone la lunghezza da N a N<sub>FFT</sub>. Il passo dei bin scende a f<sub>s</sub>/N<sub>FFT</sub> e lo spettro appare più continuo, ma la risoluzione resta quella della finestra di N campioni: si ottengono più punti sulla stessa curva. Due toni non separati con N = 256 restano non separati anche con N<sub>FFT</sub> = 2048.</p>
+        <p>Lo zero-padding aggiunge zeri al frame prima della FFT, portandone la lunghezza da N a N<sub>FFT</sub>. Il passo dei bin scende a f<sub>s</sub>/N<sub>FFT</sub> e lo spettro appare più continuo, ma la risoluzione resta quella della finestra di N campioni: si ottengono più punti sulla stessa curva. Due toni non separati con N = 256 restano non separati anche con N<sub>FFT</sub> = 2048.</p>
 
         <div class="callout callout-info">
           <strong>Dati e limiti</strong>
-          Il calcolo avviene nel browser con una FFT radix-2. I file audio sono decodificati localmente, ridotti a un canale e troncati a 10 secondi; non vengono inviati altrove. I parametri dei segnali di prova sono salvati nell'indirizzo della pagina, che si può condividere.
+          Il calcolo avviene nel browser con una FFT radix-2. Quando i frame o i bin sono più dei pixel del grafico, lo spettrogramma mostra il massimo di ciascun gruppo, così un evento breve resta visibile. I file audio sono decodificati localmente, ridotti a un canale e troncati a 10 secondi; non vengono inviati altrove. I parametri dei segnali di prova sono salvati nell'indirizzo della pagina, che si può condividere.
         </div>
 
       </div>

@@ -22,7 +22,7 @@
     sig: '#e9eaee', smp: '#22d3ee', r0: '#22d3ee', rk: '#a78bfa',
     alias: '#e63946', filter: '#f5a524', rec: '#4ade80',
     grid: 'rgba(255,255,255,0.045)', axis: 'rgba(255,255,255,0.16)',
-    label: '#6b6f7a', text: '#a0a3ad',
+    label: '#6b6f7a',
   };
   const rgba = (hex, a) => {
     const n = parseInt(hex.slice(1), 16);
@@ -292,7 +292,7 @@
       this.c.width = Math.max(1, Math.round(r.width * d));
       this.c.height = Math.max(1, Math.round(r.height * d));
       this.ctx.setTransform(d, 0, 0, d, 0, 0);
-      if (this.w < 420) this.pad.l = 36;
+      this.pad.l = this.w < 420 ? 36 : 44;
     }
     view(x0, x1, y0, y1) { Object.assign(this, { x0, x1, y0, y1 }); }
     X(v) { return this.pad.l + (v - this.x0) / (this.x1 - this.x0) * (this.w - this.pad.l - this.pad.r); }
